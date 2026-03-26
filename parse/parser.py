@@ -93,7 +93,8 @@ class Parser:
             print(f"Неизвестная ошибка: {e}")
             return None
 
-    def to_json(self, items: List[Dict[str, Any]], filename: str = 'tarkov_items.json'):
+    @staticmethod
+    def to_json(items: List[Dict[str, Any]], filename: str = 'tarkov_items.json'):
         """
         Сохраняет предметы в JSON файл
 
@@ -108,10 +109,12 @@ class Parser:
             if short_name:
                 name = item.get('name', '')
                 price = item.get('avg24hPrice', 0)
-                if short_name == 'Tushonka' and "Large" in name:
-                    short_name += " L"
-                elif short_name == 'Tushonka' and "Small" in name:
-                    short_name += " S"
+                if short_name == 'Tushonka' and 'Large' in name:
+                    short_name += ' L'
+                elif short_name == 'Tushonka' and 'Small' in name:
+                    short_name += ' S'
+                elif short_name == 'Pâté':
+                    short_name = 'Pate'
 
                 mapping[short_name] = {
                     'name': name,
@@ -144,4 +147,4 @@ class Parser:
 
 if __name__ == "__main__":
     parser = Parser(query_file="query_short.txt", timeout=10)
-    result = parser.run("tarkov_items.json")
+    parser.run("tarkov_items.json")
