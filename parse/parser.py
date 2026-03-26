@@ -1,87 +1,147 @@
 import requests
 import json
+from typing import List, Dict, Optional, Any
 
 
-def parse_tarkov_dev(query_txt):
-    """Парсит все предметы из tarkov.dev GraphQL API"""
-    # GraphQL запрос
-    query = load_query(query_txt)
+class Parser:
+    def __init__(self, query_file: str = "query_short.txt", timeout: int = 5):
+        """
+        Инициализация парсера
 
-    url = "https://api.tarkov.dev/graphql"
+        Args:
+            query_file: Путь к файлу с GraphQL запросом
+            timeout: Таймаут для HTTP запроса в секундах
+        """
+        self.base_url = "https://api.tarkov.dev/graphql"
+        self.query_file = query_file
+        self.timeout = timeout
+        self.query = self._load_query()
+        self.user_agent = "Mozilla/5.0 (Diploma Project)"
 
-    headers = {
-        'Content-Type': 'application/json',  # Тип отправляемых данных
-        'Accept': 'application/json',  # Тип ожидаемых данных
-        'User-Agent': 'Mozilla/5.0 (Diploma Project)'
-    }
+    def _load_query(self) -> str:
+        """
+        Загружает GraphQL запрос из файла
 
-    # Тело POST-запроса
-    payload = {
-        'query': query
-    }
+        Returns:
+            Строка с GraphQL запросом
+        """
+        try:
+            with open(self.query_file, 'r', encoding='utf-8') as f:
+                return f.read().strip()
 
-    print("Запрос данных из tarkov.dev.\n")
+        except FileNotFoundError:
+            print(f"Файл {self.query_file} не найден, использую query_long.txt")
+            try:
+                with open("query_long.txt", 'r', encoding='utf-8') as f:
+                    return f.read().strip()
+            except FileNotFoundError:
+                print("Не найден ни один файл с запросом!")
+                return ""
 
-    # Запрос
-    try:
-        response = requests.post(url, json=payload, headers=headers, timeout=30)
+    def parse(self) -> Optional[List[Dict[str, Any]]]:
+        """
+        Выполняет запрос к API и возвращает список предметов
 
-        if response.status_code != 200:
-            print(f"Ошибка HTTP: {response.status_code}")
-            print(response.text[:200])
+        Returns:
+            Список предметов или None в случае ошибки
+        """
+        if not self.query:
+            print("Нет запроса для отправки")
             return None
 
-        data = response.json()
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'User-Agent': self.user_agent
+        }
 
-        if 'errors' in data:
-            print(f"GraphQL ошибка: {data['errors']}")
+        payload = {'query': self.query}
+
+        print(f"Отправка запроса к {self.base_url}...")
+
+        try:
+            response = requests.post(
+                self.base_url,
+                json=payload,
+                headers=headers,
+                timeout=self.timeout
+            )
+
+            if response.status_code != 200:
+                print(f"Ошибка HTTP: {response.status_code}")
+                print(f"   {response.text[:200]}")
+                return None
+
+            data = response.json()
+
+            if 'errors' in data:
+                print(f"GraphQL ошибка: {data['errors']}")
+                return None
+
+            items = data.get('data', {}).get('items', [])
+            print(f"Получено предметов: {len(items)}")
+
+            return items
+
+        except requests.exceptions.Timeout:
+            print(f"Таймаут ({self.timeout} сек) при запросе к API")
+            return None
+        except requests.exceptions.ConnectionError:
+            print("Ошибка подключения. Проверьте интернет-соединение")
+            return None
+        except Exception as e:
+            print(f"Неизвестная ошибка: {e}")
             return None
 
-        tarkov_items = data.get('data', {}).get('items', [])
+    def to_json(self, items: List[Dict[str, Any]], filename: str = 'tarkov_items.json'):
+        """
+        Сохраняет предметы в JSON файл
 
-        print(f"Получено предметов: {len(tarkov_items)}\n")
+        Args:
+            items: Список предметов из API
+            filename: Имя выходного файла
+        """
+        mapping = {}
 
-        return tarkov_items
+        for item in items:
+            short_name = item.get('shortName')
+            if short_name:
+                name = item.get('name', '')
+                price = item.get('avg24hPrice', 0)
+                if short_name == 'Tushonka' and "Large" in name:
+                    short_name += " L"
+                elif short_name == 'Tushonka' and "Small" in name:
+                    short_name += " S"
 
-    except Exception as e:
-        print(f"Ошибка во время запроса: {e}")
-        return None
+                mapping[short_name] = {
+                    'name': name,
+                    'price': price
+                }
+
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(mapping, f, ensure_ascii=False, indent=2)
+
+        print(f"Данные сохранены в {filename}")
+        print(f"Всего предметов: {len(mapping)}")
+
+    def run(self, output_file: str = 'tarkov_items.json'):
+        """
+        Запускает полный цикл: парсинг -> сохранение в JSON
+
+        Args:
+            output_file: Имя выходного JSON файла
+        """
+        print("=" * 20, "Parser Tarkov.dev", "=" * 20)
+        print(f"Файл запроса: {self.query_file}")
+
+        items = self.parse()
+
+        if items:
+            self.to_json(items, output_file)
+        else:
+            print("Не удалось получить данные")
 
 
-def load_query(filename):
-    """Загружает GraphQL запрос из txt"""
-    try:
-        with open(filename, 'r', encoding='utf-8') as f:
-            return f.read().strip()
-    except FileNotFoundError:
-        print(f"Файл {filename} не найден, возвращён стандартный запрос")
-        with open("query_long.txt", 'r', encoding='utf-8') as f:
-            return f.read().strip()
-
-
-def save_items_to_json(tarkov_items, filename='tarkov_items.json'):
-    """Сохраняет предметы в JSON файл"""
-    mapping = {}
-
-    for item in tarkov_items:
-        if item['shortName']:
-            short_name = item['shortName']
-            mapping[short_name] = {
-                'name': item['name'],
-                'price': item['avg24hPrice']
-            }
-
-    with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(mapping, f, ensure_ascii=False, indent=2)  # indent - отступы
-
-    print(f"Данные сохранены в {filename}\n")
-
-
-# Запуск парсера
 if __name__ == "__main__":
-
-    items = parse_tarkov_dev("query_short.txt")
-
-    if items:
-        # Сохранение в json
-        save_items_to_json(items)
+    parser = Parser(query_file="query_short.txt", timeout=10)
+    result = parser.run("tarkov_items.json")

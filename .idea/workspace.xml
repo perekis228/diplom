@@ -4,19 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/diplom.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/CV/EFT.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/CV/cv_reader.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/parse/parser.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/parse/query_long.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/parse/query_short.txt" afterDir="false" />
+    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Парсер, CV(ЧБ, градиент, дорисовка линий, крестовины, контуры, обрезка контуров, поиск ячеек по размерности)">
+      <change afterPath="$PROJECT_DIR$/best.pt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/cv2/train.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CV/EFT.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/CV/cv_reader.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/parse/parser.py" beforeDir="false" afterPath="$PROJECT_DIR$/parse/parser.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -44,10 +38,12 @@
   </component>
   <component name="PropertiesComponent">{
   &quot;keyToString&quot;: {
+    &quot;Python.check.executor&quot;: &quot;Run&quot;,
     &quot;Python.cv_reader.executor&quot;: &quot;Run&quot;,
     &quot;Python.main.executor&quot;: &quot;Run&quot;,
     &quot;Python.parser.executor&quot;: &quot;Run&quot;,
     &quot;Python.test.executor&quot;: &quot;Run&quot;,
+    &quot;Python.train.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;master&quot;
@@ -55,11 +51,14 @@
 }</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
-      <recent name="C:\PythonUniversity\diplom\CV" />
-      <recent name="C:\PythonUniversity\diplom\parse" />
+      <recent name="C:\PythonUniversity\diplom" />
+      <recent name="C:\PythonUniversity\diplom\runs\detect" />
+      <recent name="C:\PythonUniversity\diplom\CV2" />
+      <recent name="C:\PythonUniversity\diplom\CV2\dataset\val\labels" />
+      <recent name="C:\PythonUniversity\diplom\CV2\dataset\val\images" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.main">
+  <component name="RunManager">
     <configuration name="cv_reader" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="diplom" />
       <option name="ENV_FILES" value="" />
@@ -149,6 +148,19 @@
       <option name="presentableId" value="Default" />
       <updated>1772261950458</updated>
     </task>
+    <task id="LOCAL-00001" summary="Парсер, CV(ЧБ, градиент, дорисовка линий, крестовины, контуры, обрезка контуров, поиск ячеек по размерности)">
+      <option name="closed" value="true" />
+      <created>1773930748272</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1773930748272</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Парсер, CV(ЧБ, градиент, дорисовка линий, крестовины, контуры, обрезка контуров, поиск ячеек по размерности)" />
+    <option name="LAST_COMMIT_MESSAGE" value="Парсер, CV(ЧБ, градиент, дорисовка линий, крестовины, контуры, обрезка контуров, поиск ячеек по размерности)" />
   </component>
 </project>
