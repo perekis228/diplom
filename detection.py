@@ -91,8 +91,7 @@ def detect_items(image_path: str, model_path: str, items_data: Dict[str, Dict[st
         detected_items.sort(key=lambda x: (x['price'] is None, x['price'] if x['price'] is not None else float('inf')))
     return detected_items
 
-
-if __name__ == "__main__":
+def main():
     items_data = load_items_data('parse/tarkov_items.json')
     items = detect_items('test.png', 'best.pt', items_data, 0.7)
 
@@ -101,3 +100,6 @@ if __name__ == "__main__":
             print(item)
     else:
         print("Предметы не найдены или произошла ошибка")
+
+if __name__ == "__main__":
+    main()

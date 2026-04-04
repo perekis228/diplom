@@ -7,7 +7,8 @@ from PyQt5.QtWidgets import (QApplication,  # Главный класс
                              QPushButton)   # Кнопка
 from PyQt5.QtCore import Qt                 # Содержит константы Qt
 from PyQt5.QtGui import QFont               # Для настройки шрифтов
-
+import subprocess
+import detection
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -41,8 +42,22 @@ class MainWindow(QMainWindow):
         self.toggle_button.clicked.connect(self.toggle_status)
         layout.addWidget(self.toggle_button, alignment=Qt.AlignCenter)
 
+        layout.addSpacing(30)
+        self.button = QPushButton("Запустить detect.py")
+        self.button.clicked.connect(self.run_detect)
+        layout.addWidget(self.button)
+        central_widget.setLayout(layout)
+
         # Устанавливаем начальное состояние (выключен)
         self.update_ui()
+
+    def run_detect(self):
+        try:
+            # Запускаем detect.py как отдельный процесс
+            subprocess.Popen([sys.executable, "detection.py"])
+            print("detect.py запущен")
+        except Exception as e:
+            print(f"Ошибка при запуске: {e}")
 
     def update_ui(self):
         """Единый метод для обновления интерфейса"""
