@@ -4,13 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Парсер, CV(ЧБ, градиент, дорисовка линий, крестовины, контуры, обрезка контуров, поиск ячеек по размерности)">
-      <change afterPath="$PROJECT_DIR$/best.pt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/cv2/train.py" afterDir="false" />
+    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Удалил не нужное">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/CV/EFT.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/CV/cv_reader.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/parse/parser.py" beforeDir="false" afterPath="$PROJECT_DIR$/parse/parser.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -40,16 +36,25 @@
   &quot;keyToString&quot;: {
     &quot;Python.check.executor&quot;: &quot;Run&quot;,
     &quot;Python.cv_reader.executor&quot;: &quot;Run&quot;,
+    &quot;Python.detection.executor&quot;: &quot;Run&quot;,
+    &quot;Python.detection_pyqt.executor&quot;: &quot;Run&quot;,
+    &quot;Python.gui.executor&quot;: &quot;Run&quot;,
     &quot;Python.main.executor&quot;: &quot;Run&quot;,
     &quot;Python.parser.executor&quot;: &quot;Run&quot;,
+    &quot;Python.run.executor&quot;: &quot;Run&quot;,
     &quot;Python.test.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_dll.executor&quot;: &quot;Run&quot;,
     &quot;Python.train.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/PythonUniversity/diplom&quot;
   }
 }</component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\PythonUniversity\diplom" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="C:\PythonUniversity\diplom" />
       <recent name="C:\PythonUniversity\diplom\runs\detect" />
@@ -81,7 +86,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+    <configuration name="detection" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="diplom" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -94,7 +99,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
+      <option name="SCRIPT_NAME" value="C:\PythonUniversity\diplom\detection.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -156,11 +161,65 @@
       <option name="project" value="LOCAL" />
       <updated>1773930748272</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="Парсер переделан как класс, добавлена тестовая модель">
+      <option name="closed" value="true" />
+      <created>1774536577275</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1774536577275</updated>
+    </task>
+    <task id="LOCAL-00003" summary="В парсер добавлено Pate из-за кривых символов">
+      <option name="closed" value="true" />
+      <created>1774540096168</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1774540096168</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Функция обнаружения предметов и вывода их в консоль по возрастанию цены">
+      <option name="closed" value="true" />
+      <created>1774540130148</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1774540130148</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Начальный GUI">
+      <option name="closed" value="true" />
+      <created>1774712799041</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1774712799042</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Кнопка в GUI для запуска detection.py">
+      <option name="closed" value="true" />
+      <created>1775307409215</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1775307409215</updated>
+    </task>
+    <task id="LOCAL-00007" summary="Удалил не нужное">
+      <option name="closed" value="true" />
+      <created>1775307746110</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1775307746111</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Парсер, CV(ЧБ, градиент, дорисовка линий, крестовины, контуры, обрезка контуров, поиск ячеек по размерности)" />
-    <option name="LAST_COMMIT_MESSAGE" value="Парсер, CV(ЧБ, градиент, дорисовка линий, крестовины, контуры, обрезка контуров, поиск ячеек по размерности)" />
+    <MESSAGE value="Парсер переделан как класс, добавлена тестовая модель" />
+    <MESSAGE value="В парсер добавлено Pate из-за кривых символов" />
+    <MESSAGE value="Функция обнаружения предметов и вывода их в консоль по возрастанию цены" />
+    <MESSAGE value="Начальный GUI" />
+    <MESSAGE value="Кнопка в GUI для запуска detection.py" />
+    <MESSAGE value="Удалил не нужное" />
+    <option name="LAST_COMMIT_MESSAGE" value="Удалил не нужное" />
   </component>
 </project>
