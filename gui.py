@@ -6,13 +6,46 @@ from PyQt5.QtWidgets import (QApplication,  # Главный класс прил
                              QHBoxLayout,  # Горизонтальный менеджер компоновки
                              QLabel,  # Текстовая метка
                              QPushButton,  # Кнопка
-                             QTextEdit,  # Текстовое поле для консоли
-                             QFileDialog)  # Диалог выбора файлов
-
-from PyQt5.QtCore import Qt, QProcess  # Qt - константы, QProcess - для запуска внешних программ
-from PyQt5.QtGui import QFont, QPixmap, QScreen  # QFont - шрифты, QPixmap - для работы с изображениями, QScreen - для скриншотов
-from datetime import datetime  # Для создания уникальных имен файлов
+                             QTextEdit)  # Текстовое поле для консоли
+from PyQt5.QtCore import Qt, QProcess, QObject, pyqtSignal  # Qt - константы, QProcess - для запуска внешних программ,
+                                                            # QObject - для сигналов, pyqtSignal - для создания сигналов
+from PyQt5.QtGui import QFont  # QFont - шрифты
 import os  # Для работы с путями
+import keyboard  # Для глобальных горячих клавиш (работает даже когда окно неактивно)
+
+
+# Создаем класс-посредник для обработки горячих клавиш в отдельном потоке
+class HotkeyHandler(QObject):
+    # Создаем сигнал, который будет испускаться при нажатии горячей клавиши
+    hotkey_pressed = pyqtSignal()
+
+    def __init__(self):
+        super().__init__()
+        self.hotkey_global = None  # Идентификатор глобальной горячей клавиши
+
+    def register_hotkey(self):
+        """Регистрирует глобальную горячую клавишу"""
+        try:
+            # Регистрируем горячую клавишу
+            self.hotkey_global = keyboard.add_hotkey('shift+l', self._on_hotkey)
+            return True
+        except Exception as e:
+            print(f"Ошибка регистрации горячей клавиши: {e}")
+            return False
+
+    def _on_hotkey(self):
+        """Внутренний обработчик нажатия клавиши (вызывается из потока keyboard)"""
+        # Испускаем сигнал вместо прямого вызова GUI методов
+        self.hotkey_pressed.emit()
+
+    def unregister_hotkey(self):
+        """Отменяет регистрацию глобальной горячей клавиши"""
+        if self.hotkey_global is not None:
+            try:
+                keyboard.remove_hotkey(self.hotkey_global)
+                self.hotkey_global = None
+            except Exception as e:
+                print(f"Ошибка отключения горячей клавиши: {e}")
 
 
 class MainWindow(QMainWindow):
@@ -21,8 +54,16 @@ class MainWindow(QMainWindow):
         self.is_on = False  # Флаг состояния детектора (включен/выключен)
         self.detection_process = None  # Переменная для хранения объекта процесса detection.py
         self.screenshot_path = None  # Путь к последнему сделанному скриншоту
+        self.hotkey_handler = None  # Обработчик горячих клавиш
         self.init_ui()  # Вызываем метод инициализации интерфейса
         self.center()  # Вызываем метод центрирования окна на экране
+        self.init_hotkey_handler()  # Инициализируем обработчик горячих клавиш
+
+    def init_hotkey_handler(self):
+        """Инициализирует обработчик горячих клавиш"""
+        self.hotkey_handler = HotkeyHandler()
+        # Подключаем сигнал из потока keyboard к слоту в основном потоке GUI
+        self.hotkey_handler.hotkey_pressed.connect(self.on_hotkey_activated)
 
     def init_ui(self):
         """Метод для создания пользовательского интерфейса"""
@@ -58,7 +99,7 @@ class MainWindow(QMainWindow):
         button_layout = QHBoxLayout()  # Горизонтальное расположение кнопок
 
         # Кнопка создания скриншота и запуска detection.py
-        self.run_button = QPushButton("Сделать скриншот и запустить detection.py")
+        self.run_button = QPushButton("Сделать скриншот и запустить detection.py (Shift+L)")
         self.run_button.clicked.connect(self.take_screenshot_and_run)
         button_layout.addWidget(self.run_button)
         self.run_button.setEnabled(False)
@@ -98,6 +139,14 @@ class MainWindow(QMainWindow):
         # Устанавливаем начальное состояние кнопки-переключателя
         self.update_ui()
 
+    def on_hotkey_activated(self):
+        """Обработчик активации горячей клавиши Shift+L (вызывается в основном потоке GUI)"""
+        self.append_to_console("Горячая клавиша Shift+L нажата", "cyan")
+        if self.is_on:
+            self.take_screenshot_and_run()
+        else:
+            self.append_to_console("Детектор выключен. Сначала включите детектор кнопкой 'ЗАПУЩЕН/ВЫКЛЮЧЕН'", "orange")
+
     def take_screenshot_and_run(self):
         """Делает скриншот всего экрана и запускает detection.py с путем к скриншоту"""
         try:
@@ -107,7 +156,7 @@ class MainWindow(QMainWindow):
                 self.append_to_console("Ошибка: не удалось получить доступ к экрану", "red")
                 return
             filename = "screenshot.png"
-            self.screenshot_path = os.path.join(filename)
+            self.screenshot_path = os.path.join(os.getcwd(), filename)  # Полный путь
 
             # Делаем скриншот всего экрана
             screenshot = screen.grabWindow(0)  # 0 - идентификатор корневого окна (весь экран)
@@ -135,7 +184,7 @@ class MainWindow(QMainWindow):
 
             # Проверяем, существует ли файл скриншота
             if not self.screenshot_path or not os.path.exists(self.screenshot_path):
-                self.append_to_console("Ошибка: файл скриншота не найден", "red")
+                self.append_to_console(f"Ошибка: файл скриншота не найден: {self.screenshot_path}", "red")
                 return
 
             # Создаем новый объект QProcess (управляет внешним процессом)
@@ -259,9 +308,19 @@ class MainWindow(QMainWindow):
 
         if self.is_on:
             self.append_to_console("Детектор активирован", "green")
+            # Регистрируем глобальную горячую клавишу при активации
+            if self.hotkey_handler.register_hotkey():
+                self.append_to_console(
+                    "Глобальная горячая клавиша Shift+L зарегистрирована (работает даже когда окно неактивно)", "green")
+            else:
+                self.append_to_console(
+                    "Ошибка при регистрации горячей клавиши. Возможно, требуются права администратора", "orange")
             self.run_button.setEnabled(True)
         else:
             self.append_to_console("Детектор деактивирован", "yellow")
+            # Отменяем регистрацию горячей клавиши при деактивации
+            self.hotkey_handler.unregister_hotkey()
+            self.append_to_console("Глобальная горячая клавиша Shift+L отключена", "yellow")
             self.run_button.setEnabled(False)
 
     def center(self):
@@ -279,6 +338,10 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Обработчик закрытия окна"""
+        # Отменяем регистрацию горячей клавиши при закрытии окна
+        if self.hotkey_handler:
+            self.hotkey_handler.unregister_hotkey()
+
         # Проверяем, запущен ли процесс
         if self.detection_process and self.detection_process.state() == QProcess.Running:
             self.append_to_console("Закрытие приложения, остановка detection.py...", "orange")
