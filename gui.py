@@ -6,10 +6,13 @@ from PyQt5.QtWidgets import (QApplication,  # Главный класс прил
                              QHBoxLayout,  # Горизонтальный менеджер компоновки
                              QLabel,  # Текстовая метка
                              QPushButton,  # Кнопка
-                             QTextEdit)  # Текстовое поле для консоли
+                             QTextEdit,  # Текстовое поле для консоли
+                             QFileDialog)  # Диалог выбора файлов
 
 from PyQt5.QtCore import Qt, QProcess  # Qt - константы, QProcess - для запуска внешних программ
-from PyQt5.QtGui import QFont  # QFont - шрифты
+from PyQt5.QtGui import QFont, QPixmap, QScreen  # QFont - шрифты, QPixmap - для работы с изображениями, QScreen - для скриншотов
+from datetime import datetime  # Для создания уникальных имен файлов
+import os  # Для работы с путями
 
 
 class MainWindow(QMainWindow):
@@ -17,6 +20,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.is_on = False  # Флаг состояния детектора (включен/выключен)
         self.detection_process = None  # Переменная для хранения объекта процесса detection.py
+        self.screenshot_path = None  # Путь к последнему сделанному скриншоту
         self.init_ui()  # Вызываем метод инициализации интерфейса
         self.center()  # Вызываем метод центрирования окна на экране
 
@@ -53,9 +57,9 @@ class MainWindow(QMainWindow):
         # Создаем горизонтальный layout для группы кнопок управления
         button_layout = QHBoxLayout()  # Горизонтальное расположение кнопок
 
-        # Кнопка запуска detection.py
-        self.run_button = QPushButton("Запустить detection.py")
-        self.run_button.clicked.connect(self.run_detect)
+        # Кнопка создания скриншота и запуска detection.py
+        self.run_button = QPushButton("Сделать скриншот и запустить detection.py")
+        self.run_button.clicked.connect(self.take_screenshot_and_run)
         button_layout.addWidget(self.run_button)
         self.run_button.setEnabled(False)
 
@@ -94,29 +98,44 @@ class MainWindow(QMainWindow):
         # Устанавливаем начальное состояние кнопки-переключателя
         self.update_ui()
 
-    def append_to_console(self, text, color=None):
-        """Добавляет текст в консоль с опциональным цветом"""
-        if color:
-            # Формируем HTML-строку с цветом текста
-            colored_text = f'<font color="{color}">{text}</font>'
-            self.console.append(colored_text)
-        else:
-            self.console.append(text)
+    def take_screenshot_and_run(self):
+        """Делает скриншот всего экрана и запускает detection.py с путем к скриншоту"""
+        try:
+            # Получаем основной экран
+            screen = QApplication.primaryScreen()
+            if not screen:
+                self.append_to_console("Ошибка: не удалось получить доступ к экрану", "red")
+                return
+            filename = "screenshot.png"
+            self.screenshot_path = os.path.join(filename)
 
-        # Автоматическая прокрутка вниз при добавлении нового текста
-        scrollbar = self.console.verticalScrollBar()  # Получаем вертикальный скроллбар консоли
-        scrollbar.setValue(scrollbar.maximum())  # Устанавливаем позицию скролла на максимум (вниз)
+            # Делаем скриншот всего экрана
+            screenshot = screen.grabWindow(0)  # 0 - идентификатор корневого окна (весь экран)
 
-    def clear_console(self):
-        """Очищает консоль"""
-        self.console.clear()
+            # Сохраняем скриншот
+            success = screenshot.save(self.screenshot_path, "PNG")
 
-    def run_detect(self):
-        """Запускает detection.py в отдельном процессе"""
+            if success:
+                self.append_to_console(f"Скриншот сохранен: {self.screenshot_path}", "green")
+                # Запускаем detection.py с путем к скриншоту
+                self.run_detect_with_screenshot()
+            else:
+                self.append_to_console("Ошибка: не удалось сохранить скриншот", "red")
+
+        except Exception as e:  # Ловим любые исключения
+            self.append_to_console(f"Ошибка при создании скриншота: {e}", "red")
+
+    def run_detect_with_screenshot(self):
+        """Запускает detection.py с передачей пути к скриншоту в качестве аргумента"""
         try:
             # Проверяем, не запущен ли уже процесс
             if self.detection_process and self.detection_process.state() == QProcess.Running:
                 self.append_to_console("Процесс уже запущен!", "orange")
+                return
+
+            # Проверяем, существует ли файл скриншота
+            if not self.screenshot_path or not os.path.exists(self.screenshot_path):
+                self.append_to_console("Ошибка: файл скриншота не найден", "red")
                 return
 
             # Создаем новый объект QProcess (управляет внешним процессом)
@@ -134,9 +153,9 @@ class MainWindow(QMainWindow):
             # Сигнал started - когда процесс успешно запустился
             self.detection_process.started.connect(self.process_started)
 
-            # Запускаем detection.py
+            # Запускаем detection.py и передаем путь к скриншоту как аргумент командной строки
             # sys.executable - путь к текущему интерпретатору Python
-            self.detection_process.start(sys.executable, ["detection.py"])
+            self.detection_process.start(sys.executable, ["detection.py", self.screenshot_path])
 
             # Ждем запуска процесса максимум 3 секунды
             if not self.detection_process.waitForStarted(3000):
@@ -147,6 +166,23 @@ class MainWindow(QMainWindow):
 
         except Exception as e:  # Ловим любые исключения
             self.append_to_console(f"Ошибка при запуске: {e}", "red")
+
+    def append_to_console(self, text, color=None):
+        """Добавляет текст в консоль с опциональным цветом"""
+        if color:
+            # Формируем HTML-строку с цветом текста
+            colored_text = f'<font color="{color}">{text}</font>'
+            self.console.append(colored_text)
+        else:
+            self.console.append(text)
+
+        # Автоматическая прокрутка вниз при добавлении нового текста
+        scrollbar = self.console.verticalScrollBar()  # Получаем вертикальный скроллбар консоли
+        scrollbar.setValue(scrollbar.maximum())  # Устанавливаем позицию скролла на максимум (вниз)
+
+    def clear_console(self):
+        """Очищает консоль"""
+        self.console.clear()
 
     def handle_stdout(self):
         """Обработка стандартного вывода"""

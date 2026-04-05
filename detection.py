@@ -1,5 +1,6 @@
 from ultralytics import YOLO
 import os
+import sys
 import json
 from typing import Optional, List, Dict, Any
 
@@ -92,8 +93,13 @@ def detect_items(image_path: str, model_path: str, items_data: Dict[str, Dict[st
     return detected_items
 
 def main():
-    items_data = load_items_data('parse/tarkov_items.json')
-    items = detect_items('test.png', 'best.pt', items_data, 0.7)
+    if len(sys.argv) > 1:
+        path = sys.argv[1]  # Путь к скриншоту
+        print(f"Получен путь к скриншоту: {path}")
+        items_data = load_items_data('parse/tarkov_items.json')
+        items = detect_items(path, 'best.pt', items_data, 0.7)
+    else:
+        print("Ошибка: путь к скриншоту не передан")
 
     if items:
         for item in items:

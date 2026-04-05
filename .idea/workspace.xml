@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Удалил не нужное">
+    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="В GUI добавлены консоль, кнопки запуска detection.py и очистки консоли">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/detection.py" beforeDir="false" afterPath="$PROJECT_DIR$/detection.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -209,7 +210,15 @@
       <option name="project" value="LOCAL" />
       <updated>1775307746111</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="В GUI добавлены консоль, кнопки запуска detection.py и очистки консоли">
+      <option name="closed" value="true" />
+      <created>1775311969581</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1775311969581</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -220,6 +229,7 @@
     <MESSAGE value="Начальный GUI" />
     <MESSAGE value="Кнопка в GUI для запуска detection.py" />
     <MESSAGE value="Удалил не нужное" />
-    <option name="LAST_COMMIT_MESSAGE" value="Удалил не нужное" />
+    <MESSAGE value="В GUI добавлены консоль, кнопки запуска detection.py и очистки консоли" />
+    <option name="LAST_COMMIT_MESSAGE" value="В GUI добавлены консоль, кнопки запуска detection.py и очистки консоли" />
   </component>
 </project>
