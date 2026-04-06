@@ -4,6 +4,7 @@ import sys
 import json
 from typing import Optional, List, Dict, Any
 
+
 def load_items_data(json_path: str = 'parse/tarkov_items.json') -> Dict[str, Dict[str, Any]]:
     """
     Загружает данные о предметах из JSON файла
@@ -92,20 +93,17 @@ def detect_items(image_path: str, model_path: str, items_data: Dict[str, Dict[st
         detected_items.sort(key=lambda x: (x['price'] is None, x['price'] if x['price'] is not None else float('inf')))
     return detected_items
 
+
 def main():
     if len(sys.argv) > 1:
         path = sys.argv[1]  # Путь к скриншоту
         print(f"Получен путь к скриншоту: {path}")
         items_data = load_items_data('parse/tarkov_items.json')
         items = detect_items(path, 'best.pt', items_data, 0.7)
+        print(json.dumps(items[:5]))
     else:
         print("Ошибка: путь к скриншоту не передан")
 
-    if items:
-        for item in items:
-            print(item)
-    else:
-        print("Предметы не найдены или произошла ошибка")
 
 if __name__ == "__main__":
     main()

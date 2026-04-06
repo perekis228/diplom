@@ -7,11 +7,14 @@ from PyQt5.QtWidgets import (QApplication,  # Главный класс прил
                              QLabel,  # Текстовая метка
                              QPushButton,  # Кнопка
                              QTextEdit)  # Текстовое поле для консоли
-from PyQt5.QtCore import Qt, QProcess, QObject, pyqtSignal  # Qt - константы, QProcess - для запуска внешних программ,
-                                                            # QObject - для сигналов, pyqtSignal - для создания сигналов
-from PyQt5.QtGui import QFont  # QFont - шрифты
-import os  # Для работы с путями
+from PyQt5.QtCore import (Qt,  # Константы
+                          QProcess,  # Для запуска внешних программ
+                          QObject,  # Для сигналов
+                          pyqtSignal)  # Для создания сигналов
+from PyQt5.QtGui import QFont  # Шрифты
+import os
 import keyboard  # Для глобальных горячих клавиш (работает даже когда окно неактивно)
+import json
 
 
 # Создаем класс-посредник для обработки горячих клавиш в отдельном потоке
@@ -53,6 +56,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.is_on = False  # Флаг состояния детектора (включен/выключен)
         self.detection_process = None  # Переменная для хранения объекта процесса detection.py
+        self.overlay_process = None  # Переменная для хранения объекта процесса overlay.py
         self.screenshot_path = None  # Путь к последнему сделанному скриншоту
         self.hotkey_handler = None  # Обработчик горячих клавиш
         self.init_ui()  # Вызываем метод инициализации интерфейса
@@ -234,14 +238,20 @@ class MainWindow(QMainWindow):
         self.console.clear()
 
     def handle_stdout(self):
-        """Обработка стандартного вывода"""
+        """Обработка стандартного вывода с парсингом JSON"""
         if self.detection_process:
             # Читаем все данные из стандартного вывода
             data = self.detection_process.readAllStandardOutput()  # QByteArray
             # Декодируем байты в строку UTF-8, заменяем ошибки
             text = bytes(data).decode('utf-8', errors='replace')
+
             if text.strip():
-                self.append_to_console(text.strip())
+                try:
+                    # Пробуем преобразовать текст в JSON
+                    items_data = json.loads(text.strip())
+                    self.process_detection_result(items_data)
+                except json.JSONDecodeError:
+                    self.append_to_console(text.strip())
 
     def handle_stderr(self):
         """Обработка стандартного вывода ошибок"""
@@ -347,7 +357,23 @@ class MainWindow(QMainWindow):
             self.append_to_console("Закрытие приложения, остановка detection.py...", "orange")
             self.detection_process.terminate()  # Пытаемся вежливо завершить
             self.detection_process.waitForFinished(3000)  # Ждем 3 секунды
+            self.overlay_process.terminate()  # Пытаемся вежливо завершить
+            self.overlay_process.waitForFinished(3000)  # Ждем 3 секунды
         event.accept()  # Принимаем событие закрытия (окно закроется)
+
+    def process_detection_result(self, items):
+        """Обрабатывает результат из detection.py и запускает оверлей"""
+        if items:
+            # Запускаем оверлей, передавая данные через аргументы
+            items_json = json.dumps(items)
+
+            # Запускаем overlay.py как отдельный процесс
+            self.overlay_process = QProcess()
+            self.overlay_process.start(sys.executable, ["overlay.py", items_json])
+
+            self.append_to_console(f"Оверлей запущен с {len(items)} предметами", "green")
+        else:
+            self.append_to_console("Нет предметов для отображения", "yellow")
 
 
 def main():
