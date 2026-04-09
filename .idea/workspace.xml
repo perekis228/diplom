@@ -4,11 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Скриншот теперь делается ещё и по сочетанию клавиш Shift+L">
-      <change afterPath="$PROJECT_DIR$/overlay.py" afterDir="false" />
+    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment=" overlay.py обрисовывает все предметы, которые получил и пишет цену над ними на 8 сек, detection.py теперь выводит 5 самых дешёвых предметов, gui.py запускает overlay.py">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/detection.py" beforeDir="false" afterPath="$PROJECT_DIR$/detection.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/overlay.py" beforeDir="false" afterPath="$PROJECT_DIR$/overlay.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -65,7 +64,7 @@
       <recent name="C:\PythonUniversity\diplom\CV2\dataset\val\images" />
     </key>
   </component>
-  <component name="RunManager">
+  <component name="RunManager" selected="Python.detection">
     <configuration name="cv_reader" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="diplom" />
       <option name="ENV_FILES" value="" />
@@ -235,7 +234,15 @@
       <option name="project" value="LOCAL" />
       <updated>1775396525037</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary=" overlay.py обрисовывает все предметы, которые получил и пишет цену над ними на 8 сек, detection.py теперь выводит 5 самых дешёвых предметов, gui.py запускает overlay.py">
+      <option name="closed" value="true" />
+      <created>1775491876560</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1775491876560</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -249,6 +256,7 @@
     <MESSAGE value="В GUI добавлены консоль, кнопки запуска detection.py и очистки консоли" />
     <MESSAGE value="По кнопке делается скриншот и понему запускается detection.py" />
     <MESSAGE value="Скриншот теперь делается ещё и по сочетанию клавиш Shift+L" />
-    <option name="LAST_COMMIT_MESSAGE" value="Скриншот теперь делается ещё и по сочетанию клавиш Shift+L" />
+    <MESSAGE value=" overlay.py обрисовывает все предметы, которые получил и пишет цену над ними на 8 сек, detection.py теперь выводит 5 самых дешёвых предметов, gui.py запускает overlay.py" />
+    <option name="LAST_COMMIT_MESSAGE" value=" overlay.py обрисовывает все предметы, которые получил и пишет цену над ними на 8 сек, detection.py теперь выводит 5 самых дешёвых предметов, gui.py запускает overlay.py" />
   </component>
 </project>

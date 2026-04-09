@@ -147,9 +147,28 @@ class MainWindow(QMainWindow):
         """Обработчик активации горячей клавиши Shift+L (вызывается в основном потоке GUI)"""
         self.append_to_console("Горячая клавиша Shift+L нажата", "cyan")
         if self.is_on:
-            self.take_screenshot_and_run()
+            if self.overlay_process and self.overlay_process.state() == QProcess.Running:
+                self.stop_overlay()
+            else:
+                self.take_screenshot_and_run()
         else:
             self.append_to_console("Детектор выключен. Сначала включите детектор кнопкой 'ЗАПУЩЕН/ВЫКЛЮЧЕН'", "orange")
+
+    def stop_overlay(self):
+        """Останавливает оверлей"""
+        if self.overlay_process and self.overlay_process.state() == QProcess.Running:
+            self.append_to_console("Остановка оверлея...", "orange")
+
+            self.overlay_process.terminate()
+            if self.overlay_process.waitForFinished(1000):
+                self.append_to_console("Оверлей успешно остановлен", "green")
+            else:
+                self.append_to_console("Оверлей не отвечает, принудительное завершение", "red")
+                self.overlay_process.kill()
+                self.overlay_process.waitForFinished(1000)
+
+            self.overlay_process = None
+            self.append_to_console("Оверлей остановлен", "yellow")
 
     def take_screenshot_and_run(self):
         """Делает скриншот всего экрана и запускает detection.py с путем к скриншоту"""
@@ -198,13 +217,13 @@ class MainWindow(QMainWindow):
 
             # ========== ПОДКЛЮЧАЕМ СИГНАЛЫ ПРОЦЕССА ==========
             # Сигнал readyReadStandardOutput - когда есть данные в stdout
-            self.detection_process.readyReadStandardOutput.connect(self.handle_stdout)
+            self.detection_process.readyReadStandardOutput.connect(self.handle_stdout_detection)
             # Сигнал readyReadStandardError - когда есть данные в stderr
-            self.detection_process.readyReadStandardError.connect(self.handle_stderr)
+            self.detection_process.readyReadStandardError.connect(self.handle_stderr_detection)
             # Сигнал finished - когда процесс завершился
-            self.detection_process.finished.connect(self.process_finished)
+            self.detection_process.finished.connect(self.process_finished_detection)
             # Сигнал started - когда процесс успешно запустился
-            self.detection_process.started.connect(self.process_started)
+            self.detection_process.started.connect(self.process_started_detection)
 
             # Запускаем detection.py и передаем путь к скриншоту как аргумент командной строки
             # sys.executable - путь к текущему интерпретатору Python
@@ -237,7 +256,7 @@ class MainWindow(QMainWindow):
         """Очищает консоль"""
         self.console.clear()
 
-    def handle_stdout(self):
+    def handle_stdout_detection(self):
         """Обработка стандартного вывода с парсингом JSON"""
         if self.detection_process:
             # Читаем все данные из стандартного вывода
@@ -253,7 +272,7 @@ class MainWindow(QMainWindow):
                 except json.JSONDecodeError:
                     self.append_to_console(text.strip())
 
-    def handle_stderr(self):
+    def handle_stderr_detection(self):
         """Обработка стандартного вывода ошибок"""
         if self.detection_process:
             # Читаем все данные из потока ошибок
@@ -263,11 +282,11 @@ class MainWindow(QMainWindow):
             if text.strip():
                 self.append_to_console(f"[ОШИБКА] {text.strip()}", "red")
 
-    def process_started(self):
+    def process_started_detection(self):
         """Обработчик запуска процесса"""
         self.append_to_console("detection.py успешно запущен!", "green")
 
-    def process_finished(self, exit_code, exit_status):
+    def process_finished_detection(self, exit_code, exit_status):
         """Обработчик завершения процесса"""
         # exit_code - код возврата (0 обычно означает успех)
         # exit_status - как завершился (NormalExit или CrashExit)
@@ -357,6 +376,8 @@ class MainWindow(QMainWindow):
             self.append_to_console("Закрытие приложения, остановка detection.py...", "orange")
             self.detection_process.terminate()  # Пытаемся вежливо завершить
             self.detection_process.waitForFinished(3000)  # Ждем 3 секунды
+        if self.overlay_process and self.overlay_process.state() == QProcess.Running:
+            self.append_to_console("Закрытие приложения, остановка overlay.py...", "orange")
             self.overlay_process.terminate()  # Пытаемся вежливо завершить
             self.overlay_process.waitForFinished(3000)  # Ждем 3 секунды
         event.accept()  # Принимаем событие закрытия (окно закроется)
@@ -364,16 +385,26 @@ class MainWindow(QMainWindow):
     def process_detection_result(self, items):
         """Обрабатывает результат из detection.py и запускает оверлей"""
         if items:
+            if self.overlay_process and self.overlay_process.state() == QProcess.Running:
+                self.stop_overlay()
+
             # Запускаем оверлей, передавая данные через аргументы
             items_json = json.dumps(items)
 
             # Запускаем overlay.py как отдельный процесс
             self.overlay_process = QProcess()
             self.overlay_process.start(sys.executable, ["overlay.py", items_json])
+            # Добавляем обработчик завершения оверлея
+            self.overlay_process.finished.connect(self.overlay_finished)
 
             self.append_to_console(f"Оверлей запущен с {len(items)} предметами", "green")
         else:
             self.append_to_console("Нет предметов для отображения", "yellow")
+
+    def overlay_finished(self, exit_code, exit_status):
+        """Обработчик завершения оверлея"""
+        self.append_to_console(f"Оверлей завершил работу (код: {exit_code})", "yellow")
+        self.overlay_process = None
 
 
 def main():

@@ -1,11 +1,13 @@
 import os
 import sys  # Для работы с аргументами командной строки и системными функциями
 import json
+import signal
 from PyQt5.QtWidgets import (QApplication,  # Главный класс приложения
                              QWidget)  # Базовый виджет для контейнера
 from PyQt5.QtCore import (Qt,  # Константы
                           QTimer,  # Для таймера автоскрытия
-                          QRectF)  # Прямоугольник с вещественными координатами
+                          QRectF,  # Прямоугольник с вещественными координатами
+                          QCoreApplication)  # Для работы с приложением
 from PyQt5.QtGui import (QPainter,  # Рисование
                          QPen,  # Стиль линий
                          QBrush,  # Заливка
@@ -20,6 +22,7 @@ class OverlayWindow(QWidget):
         """Конструктор класса. Инициализирует окно и настраивает его свойства."""
         super().__init__()
         self.items = []  # Список предметов для отрисовки (JSON)
+        self.is_running = True  # Флаг для контроля работы
         self.init_ui()  # Вызываем метод инициализации интерфейса
 
     def init_ui(self):
@@ -43,13 +46,21 @@ class OverlayWindow(QWidget):
         # Устанавливаем название окна
         self.setWindowTitle("Tarkov Item Overlay")
 
-        # Создаем таймер для автоматического скрытия оверлея
-        self.hide_timer = QTimer()
-        self.hide_timer.setSingleShot(True)  # Таймер сработает только один раз
-        self.hide_timer.timeout.connect(self.hide)  # При срабатывании таймера скрываем окно
+        # Создаем таймер для проверки состояния (для graceful shutdown)
+        self.check_timer = QTimer()
+        self.check_timer.timeout.connect(self.check_running)
+        self.check_timer.start(100)  # Проверяем каждые 100 мс
 
         # Показываем окно
         self.show()
+
+    def check_running(self):
+        """Проверяет флаг running и закрывает приложение если нужно"""
+        if not self.is_running:
+            print("Получен сигнал завершения, закрываем оверлей...")
+            self.check_timer.stop()
+            self.close()
+            QCoreApplication.quit()  # Выходим из приложения
 
     def update_items(self, items_data):
         """
@@ -60,13 +71,8 @@ class OverlayWindow(QWidget):
                         Каждый словарь содержит: 'class', 'bbox', 'price'
         """
         self.items = items_data
-        self.hide_timer.stop()
-
         # Перерисовываем окно (вызывает метод paintEvent)
         self.update()
-
-        # Запускаем таймер для автоматического скрытия через 8 секунд
-        self.hide_timer.start(8000)
 
     def clear_items(self):
         """Очищает все предметы и перерисовывает окно"""
@@ -182,21 +188,62 @@ class OverlayWindow(QWidget):
         # Рисуем текст в рассчитанных центрированных координатах
         painter.drawText(int(text_x), int(text_y), text)
 
+    def closeEvent(self, event):
+        """Обработчик события закрытия окна"""
+        print("Оверлей закрывается...")
+        self.is_running = False
+        self.check_timer.stop()
+        event.accept()
+
+
+# Глобальная переменная для доступа к приложению
+overlay_app = None
+overlay_window = None
+
+
+def signal_handler(signum, frame):
+    """Обработчик системных сигналов"""
+    print(f"\nПолучен сигнал {signum}")
+
+    # Используем глобальные переменные
+    global overlay_window, overlay_app
+
+    # Находим экземпляр оверлея и завершаем его
+    if overlay_window:
+        print("signal_handler: устанавливаем is_running=False")
+        overlay_window.is_running = False
+
+        if overlay_app:
+            print("signal_handler: вызываем quit()")
+            overlay_app.quit()
+    else:
+        print("signal_handler: окно не найдено, просто выходим")
+        if overlay_app:
+            overlay_app.quit()
+
 
 def main():
     """Главная функция запуска оверлейного окна"""
-    app = QApplication(sys.argv)
-    overlay = OverlayWindow()
+    global overlay_app, overlay_window
+
+    overlay_app = QApplication(sys.argv)
+
+    # Регистрируем обработчики сигналов для корректного завершения
+    signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
+    signal.signal(signal.SIGTERM, signal_handler)  # terminate() из QProcess
+    overlay_window = OverlayWindow()
 
     if len(sys.argv) > 1:
         arg = sys.argv[1]
+        # Очищаем аргумент от возможных кавычек и пробелов
+        arg = arg.strip().strip('"').strip("'")
 
         # Проверяем, является ли аргумент файлом .json
         if arg.endswith('.json') and os.path.exists(arg):
             try:
                 with open(arg, 'r', encoding='utf-8') as f:
                     items_data = json.load(f)
-                overlay.update_items(items_data)
+                overlay_window.update_items(items_data)
                 print(f"Оверлей загрузил {len(items_data)} предметов из файла {arg}")
             except Exception as e:
                 print(f"Ошибка чтения файла: {e}")
@@ -204,14 +251,14 @@ def main():
             # Пробуем распарсить как JSON строку
             try:
                 items_data = json.loads(arg)
-                overlay.update_items(items_data)
+                overlay_window.update_items(items_data)
                 print(f"Оверлей загрузил {len(items_data)} предметов из строки")
             except json.JSONDecodeError as e:
                 print(f"Ошибка: не удалось распарсить JSON данные: {e}")
     else:
         print("Ожидание данных...")
 
-    sys.exit(app.exec_())
+    sys.exit(overlay_app.exec_())
 
 
 # Точка входа в программу
