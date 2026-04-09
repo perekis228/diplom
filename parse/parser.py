@@ -146,5 +146,5 @@ class Parser:
 
 
 if __name__ == "__main__":
-    parser = Parser(query_file="query_short.txt", timeout=10)
+    parser = Parser(query_file="parse/query_short.txt", timeout=10)
     parser.run("tarkov_items.json")

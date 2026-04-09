@@ -57,6 +57,7 @@ class MainWindow(QMainWindow):
         self.is_on = False  # Флаг состояния детектора (включен/выключен)
         self.detection_process = None  # Переменная для хранения объекта процесса detection.py
         self.overlay_process = None  # Переменная для хранения объекта процесса overlay.py
+        self.parse_process = None  # Переменная для хранения объекта процесса parser.py
         self.screenshot_path = None  # Путь к последнему сделанному скриншоту
         self.hotkey_handler = None  # Обработчик горячих клавиш
         self.init_ui()  # Вызываем метод инициализации интерфейса
@@ -107,6 +108,11 @@ class MainWindow(QMainWindow):
         self.run_button.clicked.connect(self.take_screenshot_and_run)
         button_layout.addWidget(self.run_button)
         self.run_button.setEnabled(False)
+
+        # Кнопка запуска parser.py
+        self.parse_button = QPushButton("Обновить цены")
+        self.parse_button.clicked.connect(self.parse)
+        button_layout.addWidget(self.parse_button)
 
         # Кнопка очистки консоли
         self.clear_button = QPushButton("Очистить консоль")
@@ -169,6 +175,56 @@ class MainWindow(QMainWindow):
 
             self.overlay_process = None
             self.append_to_console("Оверлей остановлен", "yellow")
+
+    def parse(self):
+        """Запускает parser.py"""
+        try:
+            if self.parse_process and self.parse_process.state() == QProcess.Running:
+                self.append_to_console("Процесс уже запущен!", "orange")
+                return
+
+            self.parse_process = QProcess()
+            # Объединяем stdout (стандартный вывод) и stderr (ошибки) в один поток
+            self.parse_process.setProcessChannelMode(QProcess.MergedChannels)
+
+            # ========== ПОДКЛЮЧАЕМ СИГНАЛЫ ПРОЦЕССА ==========
+            # Сигнал readyReadStandardOutput - когда есть данные в stdout
+            self.parse_process.readyReadStandardOutput.connect(self.handle_stdout_parse)
+            # Сигнал readyReadStandardError - когда есть данные в stderr
+            self.parse_process.readyReadStandardError.connect(self.handle_stderr_parse)
+            # Сигнал finished - когда процесс завершился
+            self.parse_process.finished.connect(self.process_finished_parse)
+            # Сигнал started - когда процесс успешно запустился
+            self.parse_process.started.connect(self.process_started_parse)
+
+            # Запускаем detection.py и передаем путь к скриншоту как аргумент командной строки
+            # sys.executable - путь к текущему интерпретатору Python
+            self.parse_process.start(sys.executable, ["parse/parser.py"])
+
+            # Ждем запуска процесса максимум 3 секунды
+            if not self.parse_process.waitForStarted(3000):
+                self.append_to_console("Ошибка: не удалось запустить процесс", "red")
+                return
+
+            self.parse_button.setEnabled(False)
+        except Exception as e:  # Ловим любые исключения
+            self.append_to_console(f"Ошибка при запуске parser.py: {e}", "red")
+
+    def process_started_parse(self):
+        """Обработчик запуска процесса"""
+        self.append_to_console("parser.py успешно запущен!", "green")
+
+    def process_finished_parse(self, exit_code, exit_status):
+        """Обработчик завершения процесса"""
+        # exit_code - код возврата (0 обычно означает успех)
+        # exit_status - как завершился (NormalExit или CrashExit)
+
+        if exit_status == QProcess.NormalExit:
+            self.append_to_console(f"parser.py завершил работу с кодом {exit_code}", "yellow")
+        else:  # Если аварийное завершение
+            self.append_to_console(f"parser.py был аварийно завершен", "red")
+
+        self.parse_button.setEnabled(True)  # Разблокируем кнопку запуска
 
     def take_screenshot_and_run(self):
         """Делает скриншот всего экрана и запускает detection.py с путем к скриншоту"""
@@ -262,7 +318,7 @@ class MainWindow(QMainWindow):
             # Читаем все данные из стандартного вывода
             data = self.detection_process.readAllStandardOutput()  # QByteArray
             # Декодируем байты в строку UTF-8, заменяем ошибки
-            text = bytes(data).decode('utf-8', errors='replace')
+            text = bytes(data).decode('utf-8', errors='replace').strip()
 
             if text.strip():
                 try:
@@ -278,9 +334,33 @@ class MainWindow(QMainWindow):
             # Читаем все данные из потока ошибок
             data = self.detection_process.readAllStandardError()
             # Декодируем байты в строку
-            text = bytes(data).decode('utf-8', errors='replace')
-            if text.strip():
-                self.append_to_console(f"[ОШИБКА] {text.strip()}", "red")
+            text = bytes(data).decode('utf-8', errors='replace').strip()
+            if text:
+                self.append_to_console(f"[ОШИБКА] {text}", "red")
+
+    def handle_stdout_parse(self):
+        """Обработка стандартного вывода с парсингом JSON"""
+        if self.parse_process:
+            # Читаем все данные из стандартного вывода
+            data = self.parse_process.readAllStandardOutput()  # QByteArray
+            # Декодируем байты в строку UTF-8, заменяем ошибки
+            text = bytes(data).decode('utf-8', errors='replace').strip()
+
+            if "Данные сохранены" in text:
+                self.append_to_console(text)
+                pass
+            elif text:
+                self.append_to_console(text)
+
+    def handle_stderr_parse(self):
+        """Обработка стандартного вывода ошибок"""
+        if self.parse_process:
+            # Читаем все данные из потока ошибок
+            data = self.parse_process.readAllStandardError()
+            # Декодируем байты в строку
+            text = bytes(data).decode('utf-8', errors='replace').strip()
+            if text:
+                self.append_to_console(f"[ОШИБКА] {text}", "red")
 
     def process_started_detection(self):
         """Обработчик запуска процесса"""
