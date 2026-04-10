@@ -127,12 +127,23 @@ class Parser:
         print(f"Данные сохранены в {filename}")
         print(f"Всего предметов: {len(mapping)}")
 
-    def run(self, output_file: str = 'tarkov_items.json'):
+    @staticmethod
+    def to_json_top(items: List[Dict[str, Any]], count: int = 5, top_file: str = 'top.json'):
+        items_with_price = [item for item in items if item.get('avg24hPrice') is not None]
+        sorted_items = sorted(items_with_price, key=lambda x: x['avg24hPrice'], reverse=True)
+        top = sorted_items[:count]
+        result = [{'shortName': item['shortName'], 'avg24hPrice': item['avg24hPrice']} for item in top]
+        with open(top_file, 'w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+
+    def run(self, output_file: str = 'tarkov_items.json', count: int = 5, top_file: str = 'top.json'):
         """
         Запускает полный цикл: парсинг -> сохранение в JSON
 
         Args:
             output_file: Имя выходного JSON файла
+            count: Количество сохраняемых предметов
+            top_file: Имя выходного топа JSON файла
         """
         print("=" * 20, "Parser Tarkov.dev", "=" * 20)
         print(f"Файл запроса: {self.query_file}")
@@ -141,10 +152,11 @@ class Parser:
 
         if items:
             self.to_json(items, output_file)
+            self.to_json_top(items, count, top_file)
         else:
             print("Не удалось получить данные")
 
 
 if __name__ == "__main__":
     parser = Parser(query_file="parse/query_short.txt", timeout=10)
-    parser.run("tarkov_items.json")
+    parser.run("tarkov_items.json", 5, "top.json")
