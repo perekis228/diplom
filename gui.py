@@ -6,7 +6,10 @@ from PyQt5.QtWidgets import (QApplication,  # Главный класс прил
                              QHBoxLayout,  # Горизонтальный менеджер компоновки
                              QLabel,  # Текстовая метка
                              QPushButton,  # Кнопка
-                             QTextEdit)  # Текстовое поле для консоли
+                             QTextEdit,  # Текстовое поле для консоли
+                             QTableWidget,  # Редактор таблиц
+                             QTableWidgetItem,  # Редактор ячейки таблицы
+                             QHeaderView)  # Редактор заголовка таблицы
 from PyQt5.QtCore import (Qt,  # Константы
                           QProcess,  # Для запуска внешних программ
                           QObject,  # Для сигналов
@@ -63,6 +66,7 @@ class MainWindow(QMainWindow):
         self.init_ui()  # Вызываем метод инициализации интерфейса
         self.center()  # Вызываем метод центрирования окна на экране
         self.init_hotkey_handler()  # Инициализируем обработчик горячих клавиш
+        self.items_table = None  # Хранение предметов для таблицы
 
     def init_hotkey_handler(self):
         """Инициализирует обработчик горячих клавиш"""
@@ -73,7 +77,7 @@ class MainWindow(QMainWindow):
     def init_ui(self):
         """Метод для создания пользовательского интерфейса"""
         self.setWindowTitle("Детектор Tarkov")
-        self.setGeometry(0, 0, 1100, 500)
+        self.setGeometry(0, 0, 1000, 800)
 
         # Создаем центральный виджет (обязательный элемент для QMainWindow)
         central_widget = QWidget()
@@ -122,6 +126,49 @@ class MainWindow(QMainWindow):
         top_layout.addLayout(button_layout)  # Добавляем горизонтальный layout с кнопками в верхний вертикальный layout
 
         main_layout.addLayout(top_layout)  # Добавляем верхнюю панель в главный layout
+
+        # ========== ТАБЛИЦА ДЛЯ ОТОБРАЖЕНИЯ ПРЕДМЕТОВ ==========
+        # Создаем метку для таблицы
+        table_label = QLabel("Топ предметов:")
+        table_label.setFont(QFont("Arial", 10, QFont.Bold))
+        main_layout.addWidget(table_label)
+
+        # Создаем таблицу
+        self.items_table = QTableWidget()
+        self.items_table.setFont(QFont("Arial", 10))
+
+        # Только чтение
+        self.items_table.setEditTriggers(QTableWidget.NoEditTriggers)
+
+        # Настройка таблицы
+        self.items_table.setColumnCount(2)
+        self.items_table.setHorizontalHeaderLabels(["Предмет", "Цена"])
+
+        # Настройка внешнего вида таблицы
+        self.items_table.setStyleSheet("""
+                QTableWidget {
+                    background-color: #2d2d2d;
+                    alternate-background-color: #3c3c3c;
+                    gridline-color: #555555;
+                    color: #d4d4d4;
+                }
+                QTableWidget::item {
+                    padding: 5px;
+                }
+                QHeaderView::section {
+                    background-color: #1e1e1e;
+                    color: #ffffff;
+                    padding: 8px;
+                    border: 1px solid #3c3c3c;
+                    font-weight: bold;
+                }
+            """)
+
+        # Растягиваем колонки
+        self.items_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.items_table.setAlternatingRowColors(True)  # Чередование цветов строк
+
+        main_layout.addWidget(self.items_table)
 
         # ========== КОНСОЛЬ ДЛЯ ВЫВОДА ==========
         # Создаем метку для консоли
@@ -221,6 +268,9 @@ class MainWindow(QMainWindow):
 
         if exit_status == QProcess.NormalExit:
             self.append_to_console(f"parser.py завершил работу с кодом {exit_code}", "yellow")
+            # Если успешный парсинг, то обновляем таблицу
+            if exit_code == 0:
+                self.table_update()
         else:  # Если аварийное завершение
             self.append_to_console(f"parser.py был аварийно завершен", "red")
 
@@ -345,12 +395,7 @@ class MainWindow(QMainWindow):
             data = self.parse_process.readAllStandardOutput()  # QByteArray
             # Декодируем байты в строку UTF-8, заменяем ошибки
             text = bytes(data).decode('utf-8', errors='replace').strip()
-
-            if "Данные сохранены" in text:
-                self.append_to_console(text)
-                pass
-            elif text:
-                self.append_to_console(text)
+            self.append_to_console(text)
 
     def handle_stderr_parse(self):
         """Обработка стандартного вывода ошибок"""
@@ -483,8 +528,39 @@ class MainWindow(QMainWindow):
 
     def overlay_finished(self, exit_code, exit_status):
         """Обработчик завершения оверлея"""
-        self.append_to_console(f"Оверлей завершил работу (код: {exit_code})", "yellow")
+        if exit_status == QProcess.NormalExit:
+            self.append_to_console(f"Оверлей завершил работу (код: {exit_code})", "yellow")
+        else:
+            self.append_to_console(f"overlay.py был аварийно завершен", "red")
         self.overlay_process = None
+
+    def table_update(self):
+        """Обновляет таблицу данными из top.json"""
+        with open('parse/top.json', 'r', encoding='utf-8') as file:
+            top = json.load(file)
+
+        if not top:
+            self.append_to_console("Нет данных для отображения в таблице", "yellow")
+            return
+
+        # Устанавливаем количество строк
+        self.items_table.setRowCount(len(top))
+
+        # Заполняем таблицу данными
+        for row, item in enumerate(top):
+            # Колонка 1: Название предмета
+            name_item = QTableWidgetItem(item.get("shortName", ""))
+            name_item.setToolTip(item.get("name", ""))  # Всплывающая подсказка
+            name_item.setTextAlignment(Qt.AlignCenter)
+            self.items_table.setItem(row, 0, name_item)
+
+            # Колонка 2: Цена за единицу
+            price = item.get("avg24hPrice", 0)
+            price_item = QTableWidgetItem(f"{price:,}".replace(",", " "))
+            price_item.setTextAlignment(Qt.AlignCenter)
+            self.items_table.setItem(row, 1, price_item)
+
+        self.append_to_console(f"Таблица обновлена: {len(top)} предметов", "green")
 
 
 def main():

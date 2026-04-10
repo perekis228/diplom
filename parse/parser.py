@@ -1,6 +1,9 @@
 import requests
 import json
 from typing import List, Dict, Optional, Any
+from pathlib import Path
+
+PARSER_DIR = Path(__file__).parent
 
 
 class Parser:
@@ -121,6 +124,7 @@ class Parser:
                     'price': price
                 }
 
+        filename = PARSER_DIR / filename
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(mapping, f, ensure_ascii=False, indent=2)
 
@@ -132,7 +136,11 @@ class Parser:
         items_with_price = [item for item in items if item.get('avg24hPrice') is not None]
         sorted_items = sorted(items_with_price, key=lambda x: x['avg24hPrice'], reverse=True)
         top = sorted_items[:count]
-        result = [{'shortName': item['shortName'], 'avg24hPrice': item['avg24hPrice']} for item in top]
+        result = [{'shortName': item['shortName'],
+                   'avg24hPrice': item['avg24hPrice'],
+                   'name': item['name']} for item in top]
+
+        top_file = PARSER_DIR / top_file
         with open(top_file, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 

@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment=" overlay.py теперь закрывается при повторном нажатии shift+L">
+    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="parser.py сохраняет топ дорогих предметов">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/parse/parser.py" beforeDir="false" afterPath="$PROJECT_DIR$/parse/parser.py" afterDir="false" />
@@ -250,7 +250,23 @@
       <option name="project" value="LOCAL" />
       <updated>1775736724651</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="parser.py подключён к gui.py через кнопку">
+      <option name="closed" value="true" />
+      <created>1775739104486</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1775739104486</updated>
+    </task>
+    <task id="LOCAL-00014" summary="parser.py сохраняет топ дорогих предметов">
+      <option name="closed" value="true" />
+      <created>1775824546746</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1775824546746</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -266,6 +282,8 @@
     <MESSAGE value="Скриншот теперь делается ещё и по сочетанию клавиш Shift+L" />
     <MESSAGE value=" overlay.py обрисовывает все предметы, которые получил и пишет цену над ними на 8 сек, detection.py теперь выводит 5 самых дешёвых предметов, gui.py запускает overlay.py" />
     <MESSAGE value=" overlay.py теперь закрывается при повторном нажатии shift+L" />
-    <option name="LAST_COMMIT_MESSAGE" value=" overlay.py теперь закрывается при повторном нажатии shift+L" />
+    <MESSAGE value="parser.py подключён к gui.py через кнопку" />
+    <MESSAGE value="parser.py сохраняет топ дорогих предметов" />
+    <option name="LAST_COMMIT_MESSAGE" value="parser.py сохраняет топ дорогих предметов" />
   </component>
 </project>
