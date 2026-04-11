@@ -79,20 +79,23 @@ class MainWindow(QMainWindow):
     def init_ui(self):
         """Метод для создания пользовательского интерфейса"""
         self.setWindowTitle("Детектор Tarkov")
-        self.setGeometry(0, 0, 1000, 800)
+        self.setGeometry(0, 0, 1200, 800)\
 
         # Создаем центральный виджет (обязательный элемент для QMainWindow)
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        # Создаем главный вертикальный менеджер компоновки
-        main_layout = QVBoxLayout(central_widget)
+        # ========== ГЛАВНЫЙ ГОРИЗОНТАЛЬНЫЙ LAYOUT (две колонки) ==========
+        main_layout = QHBoxLayout(central_widget)
 
-        # ========== ВЕРХНЯЯ ПАНЕЛЬ С КНОПКАМИ ==========
-        top_layout = QVBoxLayout()  # Создаем вертикальный layout для верхней части
+        # ========== ЛЕВАЯ КОЛОНКА (кнопки + консоль) ==========
+        left_layout = QVBoxLayout()
+
+        # ВЕРХНЯЯ ПАНЕЛЬ С КНОПКАМИ
+        top_layout = QVBoxLayout()
 
         # Создаем заголовок
-        title = QLabel("Детектор предметов")  # Создаем текстовую метку
+        title = QLabel("Детектор предметов")
         title.setFont(QFont("Arial", 16, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         top_layout.addWidget(title)
@@ -107,7 +110,7 @@ class MainWindow(QMainWindow):
         top_layout.addSpacing(20)
 
         # Создаем горизонтальный layout для группы кнопок управления
-        button_layout = QHBoxLayout()  # Горизонтальное расположение кнопок
+        button_layout = QHBoxLayout()
 
         # Кнопка создания скриншота и запуска detection.py
         self.run_button = QPushButton("Сделать скриншот и запустить detection.py (Shift+L)")
@@ -125,75 +128,75 @@ class MainWindow(QMainWindow):
         self.clear_button.clicked.connect(self.clear_console)
         button_layout.addWidget(self.clear_button)
 
-        top_layout.addLayout(button_layout)  # Добавляем горизонтальный layout с кнопками в верхний вертикальный layout
+        top_layout.addLayout(button_layout)
 
-        main_layout.addLayout(top_layout)  # Добавляем верхнюю панель в главный layout
+        left_layout.addLayout(top_layout)
 
-        # ========== ТАБЛИЦА ДЛЯ ОТОБРАЖЕНИЯ ПРЕДМЕТОВ ==========
-        # Создаем метку для таблицы
+        # ========== КОНСОЛЬ ДЛЯ ВЫВОДА ==========
+        console_label = QLabel("Консоль вывода:")
+        console_label.setFont(QFont("Arial", 10, QFont.Bold))
+        left_layout.addWidget(console_label)
+
+        # Создаем текстовое поле для консоли
+        self.console = QTextEdit()
+        self.console.setFont(QFont("Courier New", 10))
+        self.console.setReadOnly(True)
+
+        self.console.setStyleSheet("""
+            QTextEdit {
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                border: 1px solid #3c3c3c;
+                border-radius: 5px;
+            }
+        """)
+        left_layout.addWidget(self.console)
+
+        # Добавляем левую колонку в главный layout (занимает 60% ширины)
+        main_layout.addLayout(left_layout, 60)  # Stretch factor = 60
+
+        # ========== ПРАВАЯ КОЛОНКА (таблица) ==========
+        right_layout = QVBoxLayout()
+
         table_label = QLabel("Топ предметов:")
         table_label.setFont(QFont("Arial", 10, QFont.Bold))
-        main_layout.addWidget(table_label)
+        right_layout.addWidget(table_label)
 
         # Создаем таблицу
         self.items_table = QTableWidget()
         self.items_table.setFont(QFont("Arial", 10))
-
-        # Только чтение
         self.items_table.setEditTriggers(QTableWidget.NoEditTriggers)
-
-        # Настройка таблицы
         self.items_table.setColumnCount(2)
         self.items_table.setHorizontalHeaderLabels(["Предмет", "Цена"])
 
         # Настройка внешнего вида таблицы
         self.items_table.setStyleSheet("""
-                QTableWidget {
-                    background-color: #2d2d2d;
-                    alternate-background-color: #3c3c3c;
-                    gridline-color: #555555;
-                    color: #d4d4d4;
-                }
-                QTableWidget::item {
-                    padding: 5px;
-                }
-                QHeaderView::section {
-                    background-color: #1e1e1e;
-                    color: #ffffff;
-                    padding: 8px;
-                    border: 1px solid #3c3c3c;
-                    font-weight: bold;
-                }
-            """)
+            QTableWidget {
+                background-color: #2d2d2d;
+                alternate-background-color: #3c3c3c;
+                gridline-color: #555555;
+                color: #d4d4d4;
+            }
+            QTableWidget::item {
+                padding: 5px;
+            }
+            QHeaderView::section {
+                background-color: #1e1e1e;
+                color: #ffffff;
+                padding: 8px;
+                border: 1px solid #3c3c3c;
+                font-weight: bold;
+            }
+        """)
 
         # Растягиваем колонки
         self.items_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.items_table.setAlternatingRowColors(True)  # Чередование цветов строк
+        self.items_table.setAlternatingRowColors(True)
 
-        main_layout.addWidget(self.items_table)
+        right_layout.addWidget(self.items_table)
 
-        # ========== КОНСОЛЬ ДЛЯ ВЫВОДА ==========
-        # Создаем метку для консоли
-        console_label = QLabel("Консоль вывода:")
-        console_label.setFont(QFont("Arial", 10, QFont.Bold))
-        main_layout.addWidget(console_label)
-
-        # Создаем текстовое поле для консоли
-        self.console = QTextEdit()
-        self.console.setFont(QFont("Courier New", 10))
-        self.console.setReadOnly(True)  # Запрещаем редактирование (только чтение)
-
-        # Устанавливаем стили для консоли (темная тема)
-        self.console.setStyleSheet("""
-            QTextEdit {
-                background-color: #1e1e1e;  /* Темно-серый фон */
-                color: #d4d4d4;             /* Светло-серый текст */
-                border: 1px solid #3c3c3c;  /* Серая рамка */
-                border-radius: 5px;         /* Скругление углов */
-            }
-        """)
-        main_layout.addWidget(self.console)  # Добавляем консоль в главный layout
-        central_widget.setLayout(main_layout)  # Устанавливаем главный layout для центрального виджета
+        # Добавляем правую колонку в главный layout (занимает 40% ширины)
+        main_layout.addLayout(right_layout, 40)  # Stretch factor = 40
 
         # Устанавливаем начальное состояние кнопки-переключателя
         self.update_ui()

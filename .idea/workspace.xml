@@ -4,11 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="parser.py сохраняет топ дорогих предметов">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/parse/parser.py" beforeDir="false" afterPath="$PROJECT_DIR$/parse/parser.py" afterDir="false" />
-    </list>
+    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Исправлена ошибка вылета" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -274,7 +270,15 @@
       <option name="project" value="LOCAL" />
       <updated>1775828962497</updated>
     </task>
-    <option name="localTasksCounter" value="16" />
+    <task id="LOCAL-00016" summary="Исправлена ошибка вылета">
+      <option name="closed" value="true" />
+      <created>1775912796165</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1775912796165</updated>
+    </task>
+    <option name="localTasksCounter" value="17" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -303,6 +307,7 @@
     <MESSAGE value=" overlay.py теперь закрывается при повторном нажатии shift+L" />
     <MESSAGE value="parser.py подключён к gui.py через кнопку" />
     <MESSAGE value="В gui.py теперь есть таблица с топ 5 дорогих предметов" />
-    <option name="LAST_COMMIT_MESSAGE" value="В gui.py теперь есть таблица с топ 5 дорогих предметов" />
+    <MESSAGE value="Исправлена ошибка вылета" />
+    <option name="LAST_COMMIT_MESSAGE" value="Исправлена ошибка вылета" />
   </component>
 </project>
