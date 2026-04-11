@@ -224,9 +224,26 @@ class Parser:
 
 if __name__ == "__main__":
     try:
+        if len(sys.argv) > 1:
+            try:
+                top_count = int(sys.argv[1])
+                # Проверяем, что число в допустимом диапазоне
+                if top_count < 1 or top_count > 20:
+                    print(f"Предупреждение: количество предметов должно быть от 1 до 20. Установлено значение 5")
+                    top_count = 5
+            except ValueError:
+                print(f"Предупреждение: неверный формат числа '{sys.argv[1]}'. Установлено значение 5")
+                top_count = 5
+        else:
+            top_count = 5
+            print(f"Количество предметов не указано. Используется значение по умолчанию: {top_count}")
+
+        print(f"Запуск парсера для {top_count} предметов...")
+
         parser = Parser(query_file="query_short.txt", timeout=10)
-        success = parser.run("tarkov_items.json", 5, "top.json")
+        success = parser.run("tarkov_items.json", top_count, "top.json")
         sys.exit(0 if success else 1)
+
     except Exception as e:
         print(f"Критическая ошибка: {e}")
         traceback.print_exc()

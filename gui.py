@@ -9,7 +9,8 @@ from PyQt5.QtWidgets import (QApplication,  # Главный класс прил
                              QTextEdit,  # Текстовое поле для консоли
                              QTableWidget,  # Редактор таблиц
                              QTableWidgetItem,  # Редактор ячейки таблицы
-                             QHeaderView)  # Редактор заголовка таблицы
+                             QHeaderView,  # Редактор заголовка таблицы
+                             QSpinBox)
 from PyQt5.QtCore import (Qt,  # Константы
                           QProcess,  # Для запуска внешних программ
                           QObject,  # Для сигналов
@@ -64,7 +65,8 @@ class MainWindow(QMainWindow):
         self.parse_process = None  # Переменная для хранения объекта процесса parser.py
         self.screenshot_path = None  # Путь к последнему сделанному скриншоту
         self.hotkey_handler = None  # Обработчик горячих клавиш
-        self.items_table = None  # Хранение предметов для таблицы
+        self.top_table = None  # Хранение предметов для ТОП таблицы
+        # self.favorite_table = None  # Хранение предметов для таблицы избранного
         self.init_ui()  # Вызываем метод инициализации интерфейса
         self.center()  # Вызываем метод центрирования окна на экране
         self.init_hotkey_handler()  # Инициализируем обработчик горячих клавиш
@@ -155,22 +157,37 @@ class MainWindow(QMainWindow):
         # Добавляем левую колонку в главный layout (занимает 60% ширины)
         main_layout.addLayout(left_layout, 60)  # Stretch factor = 60
 
-        # ========== ПРАВАЯ КОЛОНКА (таблица) ==========
+        # ========== ПРАВАЯ КОЛОНКА ==========
         right_layout = QVBoxLayout()
 
         table_label = QLabel("Топ предметов:")
         table_label.setFont(QFont("Arial", 10, QFont.Bold))
         right_layout.addWidget(table_label)
 
+        # Создаем спинбокс для выбора числа от 1 до 20
+        self.number_spinbox = QSpinBox()
+        self.number_spinbox.setRange(1, 20)  # Диапазон [1, 20]
+        self.number_spinbox.setValue(10)  # Начальное значение
+        self.number_spinbox.setSingleStep(1)  # Шаг изменения
+        self.number_spinbox.setFixedWidth(80)
+
+        # Создаем горизонтальный layout для поля и кнопки
+        custom_layout = QHBoxLayout()
+        custom_layout.addWidget(QLabel("Количество выводимых предметов (1-20):"))
+        custom_layout.addWidget(self.number_spinbox)
+        custom_layout.addStretch()  # Растягивает пустое пространство справа
+        right_layout.addLayout(custom_layout)
+        right_layout.addSpacing(10)
+
         # Создаем таблицу
-        self.items_table = QTableWidget()
-        self.items_table.setFont(QFont("Arial", 10))
-        self.items_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.items_table.setColumnCount(2)
-        self.items_table.setHorizontalHeaderLabels(["Предмет", "Цена"])
+        self.top_table = QTableWidget()
+        self.top_table.setFont(QFont("Arial", 10))
+        self.top_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.top_table.setColumnCount(2)
+        self.top_table.setHorizontalHeaderLabels(["Предмет", "Цена"])
 
         # Настройка внешнего вида таблицы
-        self.items_table.setStyleSheet("""
+        self.top_table.setStyleSheet("""
             QTableWidget {
                 background-color: #2d2d2d;
                 alternate-background-color: #3c3c3c;
@@ -190,10 +207,10 @@ class MainWindow(QMainWindow):
         """)
 
         # Растягиваем колонки
-        self.items_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.items_table.setAlternatingRowColors(True)
+        self.top_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.top_table.setAlternatingRowColors(True)
 
-        right_layout.addWidget(self.items_table)
+        right_layout.addWidget(self.top_table)
 
         # Добавляем правую колонку в главный layout (занимает 40% ширины)
         main_layout.addLayout(right_layout, 40)  # Stretch factor = 40
@@ -253,13 +270,16 @@ class MainWindow(QMainWindow):
             # Обработка ошибок процесса
             self.parse_process.errorOccurred.connect(self.process_error_parse)
 
+            # Получаем число из спинбокса
+            num_of_items = self.number_spinbox.value()
+
             # Запускаем parser.py
             # sys.executable - путь к текущему интерпретатору Python
             parser_path = os.path.join("parse", "parser.py")
             if not os.path.exists(parser_path):
                 self.append_to_console(f"Ошибка: файл {parser_path} не найден", "red")
                 return
-            self.parse_process.start(sys.executable, [parser_path])
+            self.parse_process.start(sys.executable, [parser_path, str(num_of_items)])
 
             # Ждем запуска процесса максимум 3 секунды
             if not self.parse_process.waitForStarted(3000):
@@ -567,7 +587,7 @@ class MainWindow(QMainWindow):
     def table_update(self):
         """Обновляет таблицу данными из top.json"""
         # Проверяем, что таблица существует
-        if self.items_table is None:
+        if self.top_table is None:
             self.append_to_console("Ошибка: таблица не инициализирована", "red")
             return
 
@@ -589,7 +609,7 @@ class MainWindow(QMainWindow):
                 return
 
             # Устанавливаем количество строк
-            self.items_table.setRowCount(len(top))
+            self.top_table.setRowCount(len(top))
 
             # Заполняем таблицу данными
             for row, item in enumerate(top):
@@ -597,13 +617,13 @@ class MainWindow(QMainWindow):
                 name_item = QTableWidgetItem(item.get("shortName", ""))
                 name_item.setToolTip(item.get("name", ""))  # Всплывающая подсказка
                 name_item.setTextAlignment(Qt.AlignCenter)
-                self.items_table.setItem(row, 0, name_item)
+                self.top_table.setItem(row, 0, name_item)
 
                 # Колонка 2: Цена за единицу
                 price = item.get("avg24hPrice", 0)
                 price_item = QTableWidgetItem(f"{price:,}".replace(",", " "))
                 price_item.setTextAlignment(Qt.AlignCenter)
-                self.items_table.setItem(row, 1, price_item)
+                self.top_table.setItem(row, 1, price_item)
 
             self.append_to_console(f"Таблица обновлена: {len(top)} предметов", "green")
 
