@@ -2,6 +2,10 @@ import requests
 import json
 from typing import List, Dict, Optional, Any
 from pathlib import Path
+import traceback
+import sys
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 PARSER_DIR = Path(__file__).parent
 
@@ -16,7 +20,7 @@ class Parser:
             timeout: Таймаут для HTTP запроса в секундах
         """
         self.base_url = "https://api.tarkov.dev/graphql"
-        self.query_file = query_file
+        self.query_file = PARSER_DIR / query_file
         self.timeout = timeout
         self.query = self._load_query()
         self.user_agent = "Mozilla/5.0 (Diploma Project)"
@@ -29,17 +33,25 @@ class Parser:
             Строка с GraphQL запросом
         """
         try:
-            with open(self.query_file, 'r', encoding='utf-8') as f:
-                return f.read().strip()
+            if not self.query_file.exists():
+                print(f"Файл {self.query_file} не найден")
+                # Пробуем альтернативный путь
+                alt_file = PARSER_DIR / "query_long.txt"
+                if alt_file.exists():
+                    print(f"Использую {alt_file}")
+                    self.query_file = alt_file
+                else:
+                    print("Не найден ни один файл с запросом!")
+                    return ""
 
-        except FileNotFoundError:
-            print(f"Файл {self.query_file} не найден, использую query_long.txt")
-            try:
-                with open("query_long.txt", 'r', encoding='utf-8') as f:
-                    return f.read().strip()
-            except FileNotFoundError:
-                print("Не найден ни один файл с запросом!")
-                return ""
+            with open(self.query_file, 'r', encoding='utf-8') as f:
+                query = f.read().strip()
+                print(f"Запрос загружен из {self.query_file}")
+                return query
+
+        except Exception as e:
+            print(f"Ошибка при загрузке запроса: {e}")
+            return ""
 
     def parse(self) -> Optional[List[Dict[str, Any]]]:
         """
@@ -63,12 +75,33 @@ class Parser:
         print(f"Отправка запроса к {self.base_url}...")
 
         try:
-            response = requests.post(
+            test_response = requests.get("https://api.tarkov.dev", timeout=5)
+            print(f"API доступен. Статус: {test_response.status_code}")
+        except Exception as e:
+            print(f"API недоступен: {e}")
+
+        try:
+            # Используем сессию для лучшей обработки соединения
+            session = requests.Session()
+
+            # Добавляем retry адаптер для повторных попыток
+            retry_strategy = Retry(
+                total=3,
+                backoff_factor=1,
+                status_forcelist=[429, 500, 502, 503, 504],
+            )
+            adapter = HTTPAdapter(max_retries=retry_strategy)
+            session.mount("https://", adapter)
+
+            response = session.post(
                 self.base_url,
                 json=payload,
                 headers=headers,
-                timeout=self.timeout
+                timeout=self.timeout,
+                verify=True  # Проверяем SSL сертификат
             )
+
+            print(f"Ответ получен. Статус: {response.status_code}")
 
             if response.status_code != 200:
                 print(f"Ошибка HTTP: {response.status_code}")
@@ -86,14 +119,33 @@ class Parser:
 
             return items
 
+        except requests.exceptions.SSLError as e:
+            print(f"SSL ошибка: {e}")
+            print("Пробуем без проверки SSL...")
+            try:
+                response = requests.post(
+                    self.base_url,
+                    json=payload,
+                    headers=headers,
+                    timeout=self.timeout,
+                    verify=False  # Отключаем проверку SSL
+                )
+                print(f"Статус (без SSL проверки): {response.status_code}")
+                return response.json().get('data', {}).get('items', [])
+            except Exception as e2:
+                print(f"Ошибка при повторной попытке: {e2}")
+                return None
+
         except requests.exceptions.Timeout:
             print(f"Таймаут ({self.timeout} сек) при запросе к API")
             return None
-        except requests.exceptions.ConnectionError:
-            print("Ошибка подключения. Проверьте интернет-соединение")
+        except requests.exceptions.ConnectionError as e:
+            print(f"Ошибка подключения: {e}")
             return None
         except Exception as e:
-            print(f"Неизвестная ошибка: {e}")
+            print(f"Неизвестная ошибка: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     @staticmethod
@@ -154,6 +206,8 @@ class Parser:
             top_file: Имя выходного топа JSON файла
         """
         print("=" * 20, "Parser Tarkov.dev", "=" * 20)
+        print(f"Рабочая директория: {Path.cwd()}")
+        print(f"Директория парсера: {PARSER_DIR}")
         print(f"Файл запроса: {self.query_file}")
 
         items = self.parse()
@@ -161,10 +215,19 @@ class Parser:
         if items:
             self.to_json(items, output_file)
             self.to_json_top(items, count, top_file)
+            print("Парсинг успешно завершен!")
+            return True
         else:
             print("Не удалось получить данные")
+            return False
 
 
 if __name__ == "__main__":
-    parser = Parser(query_file="parse/query_short.txt", timeout=10)
-    parser.run("tarkov_items.json", 5, "top.json")
+    try:
+        parser = Parser(query_file="query_short.txt", timeout=10)
+        success = parser.run("tarkov_items.json", 5, "top.json")
+        sys.exit(0 if success else 1)
+    except Exception as e:
+        print(f"Критическая ошибка: {e}")
+        traceback.print_exc()
+        sys.exit(1)

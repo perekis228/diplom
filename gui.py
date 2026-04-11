@@ -18,6 +18,7 @@ from PyQt5.QtGui import QFont  # Шрифты
 import os
 import keyboard  # Для глобальных горячих клавиш (работает даже когда окно неактивно)
 import json
+import traceback
 
 
 # Создаем класс-посредник для обработки горячих клавиш в отдельном потоке
@@ -63,10 +64,11 @@ class MainWindow(QMainWindow):
         self.parse_process = None  # Переменная для хранения объекта процесса parser.py
         self.screenshot_path = None  # Путь к последнему сделанному скриншоту
         self.hotkey_handler = None  # Обработчик горячих клавиш
+        self.items_table = None  # Хранение предметов для таблицы
         self.init_ui()  # Вызываем метод инициализации интерфейса
         self.center()  # Вызываем метод центрирования окна на экране
         self.init_hotkey_handler()  # Инициализируем обработчик горячих клавиш
-        self.items_table = None  # Хранение предметов для таблицы
+
 
     def init_hotkey_handler(self):
         """Инициализирует обработчик горячих клавиш"""
@@ -231,6 +233,8 @@ class MainWindow(QMainWindow):
                 return
 
             self.parse_process = QProcess()
+            # Устанавливаем рабочую директорию
+            self.parse_process.setWorkingDirectory(os.path.dirname(os.path.abspath(__file__)))
             # Объединяем stdout (стандартный вывод) и stderr (ошибки) в один поток
             self.parse_process.setProcessChannelMode(QProcess.MergedChannels)
 
@@ -243,10 +247,16 @@ class MainWindow(QMainWindow):
             self.parse_process.finished.connect(self.process_finished_parse)
             # Сигнал started - когда процесс успешно запустился
             self.parse_process.started.connect(self.process_started_parse)
+            # Обработка ошибок процесса
+            self.parse_process.errorOccurred.connect(self.process_error_parse)
 
-            # Запускаем detection.py и передаем путь к скриншоту как аргумент командной строки
+            # Запускаем parser.py
             # sys.executable - путь к текущему интерпретатору Python
-            self.parse_process.start(sys.executable, ["parse/parser.py"])
+            parser_path = os.path.join("parse", "parser.py")
+            if not os.path.exists(parser_path):
+                self.append_to_console(f"Ошибка: файл {parser_path} не найден", "red")
+                return
+            self.parse_process.start(sys.executable, [parser_path])
 
             # Ждем запуска процесса максимум 3 секунды
             if not self.parse_process.waitForStarted(3000):
@@ -257,6 +267,20 @@ class MainWindow(QMainWindow):
         except Exception as e:  # Ловим любые исключения
             self.append_to_console(f"Ошибка при запуске parser.py: {e}", "red")
 
+    def process_error_parse(self, error):
+        """Обработчик ошибок процесса"""
+        error_messages = {
+            QProcess.FailedToStart: "Не удалось запустить процесс",
+            QProcess.Crashed: "Процесс упал",
+            QProcess.Timedout: "Таймаут процесса",
+            QProcess.WriteError: "Ошибка записи",
+            QProcess.ReadError: "Ошибка чтения",
+            QProcess.UnknownError: "Неизвестная ошибка"
+        }
+        error_msg = error_messages.get(error, f"Ошибка {error}")
+        self.append_to_console(f"Ошибка процесса parser.py: {error_msg}", "red")
+        self.parse_button.setEnabled(True)
+
     def process_started_parse(self):
         """Обработчик запуска процесса"""
         self.append_to_console("parser.py успешно запущен!", "green")
@@ -265,7 +289,6 @@ class MainWindow(QMainWindow):
         """Обработчик завершения процесса"""
         # exit_code - код возврата (0 обычно означает успех)
         # exit_status - как завершился (NormalExit или CrashExit)
-
         if exit_status == QProcess.NormalExit:
             self.append_to_console(f"parser.py завершил работу с кодом {exit_code}", "yellow")
             # Если успешный парсинг, то обновляем таблицу
@@ -391,11 +414,15 @@ class MainWindow(QMainWindow):
     def handle_stdout_parse(self):
         """Обработка стандартного вывода с парсингом JSON"""
         if self.parse_process:
-            # Читаем все данные из стандартного вывода
-            data = self.parse_process.readAllStandardOutput()  # QByteArray
-            # Декодируем байты в строку UTF-8, заменяем ошибки
-            text = bytes(data).decode('utf-8', errors='replace').strip()
-            self.append_to_console(text)
+            try:
+                # Читаем все данные из стандартного вывода
+                data = self.parse_process.readAllStandardOutput()  # QByteArray
+                # Декодируем байты в строку UTF-8, заменяем ошибки
+                text = bytes(data).decode('utf-8', errors='replace').strip()
+                if text:
+                    self.append_to_console(text)
+            except Exception as e:
+                self.append_to_console(f"Ошибка при чтении вывода: {e}", "red")
 
     def handle_stderr_parse(self):
         """Обработка стандартного вывода ошибок"""
@@ -536,31 +563,52 @@ class MainWindow(QMainWindow):
 
     def table_update(self):
         """Обновляет таблицу данными из top.json"""
-        with open('parse/top.json', 'r', encoding='utf-8') as file:
-            top = json.load(file)
-
-        if not top:
-            self.append_to_console("Нет данных для отображения в таблице", "yellow")
+        # Проверяем, что таблица существует
+        if self.items_table is None:
+            self.append_to_console("Ошибка: таблица не инициализирована", "red")
             return
 
-        # Устанавливаем количество строк
-        self.items_table.setRowCount(len(top))
+        top_file = os.path.join("parse", "top.json")
+        # Альтернативный путь, если первый не работает
+        if not os.path.exists(top_file):
+            top_file = "top.json"
 
-        # Заполняем таблицу данными
-        for row, item in enumerate(top):
-            # Колонка 1: Название предмета
-            name_item = QTableWidgetItem(item.get("shortName", ""))
-            name_item.setToolTip(item.get("name", ""))  # Всплывающая подсказка
-            name_item.setTextAlignment(Qt.AlignCenter)
-            self.items_table.setItem(row, 0, name_item)
+        if not os.path.exists(top_file):
+            self.append_to_console(f"Файл {top_file} не найден в {os.getcwd()}", "red")
+            return
 
-            # Колонка 2: Цена за единицу
-            price = item.get("avg24hPrice", 0)
-            price_item = QTableWidgetItem(f"{price:,}".replace(",", " "))
-            price_item.setTextAlignment(Qt.AlignCenter)
-            self.items_table.setItem(row, 1, price_item)
+        try:
+            with open(top_file, 'r', encoding='utf-8') as file:
+                top = json.load(file)
 
-        self.append_to_console(f"Таблица обновлена: {len(top)} предметов", "green")
+            if not top:
+                self.append_to_console("Нет данных для отображения в таблице", "yellow")
+                return
+
+            # Устанавливаем количество строк
+            self.items_table.setRowCount(len(top))
+
+            # Заполняем таблицу данными
+            for row, item in enumerate(top):
+                # Колонка 1: Название предмета
+                name_item = QTableWidgetItem(item.get("shortName", ""))
+                name_item.setToolTip(item.get("name", ""))  # Всплывающая подсказка
+                name_item.setTextAlignment(Qt.AlignCenter)
+                self.items_table.setItem(row, 0, name_item)
+
+                # Колонка 2: Цена за единицу
+                price = item.get("avg24hPrice", 0)
+                price_item = QTableWidgetItem(f"{price:,}".replace(",", " "))
+                price_item.setTextAlignment(Qt.AlignCenter)
+                self.items_table.setItem(row, 1, price_item)
+
+            self.append_to_console(f"Таблица обновлена: {len(top)} предметов", "green")
+
+        except json.JSONDecodeError as e:
+            self.append_to_console(f"Ошибка чтения JSON: {e}", "red")
+        except Exception as e:
+            self.append_to_console(f"Ошибка при обновлении таблицы: {e}", "red")
+            traceback.print_exc()
 
 
 def main():
