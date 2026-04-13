@@ -10,11 +10,13 @@ from PyQt5.QtWidgets import (QApplication,  # Главный класс прил
                              QTableWidget,  # Редактор таблиц
                              QTableWidgetItem,  # Редактор ячейки таблицы
                              QHeaderView,  # Редактор заголовка таблицы
-                             QSpinBox)
+                             QSpinBox,  # Окно ввода чисел
+                             QLineEdit)  # Окно ввода текста
 from PyQt5.QtCore import (Qt,  # Константы
                           QProcess,  # Для запуска внешних программ
                           QObject,  # Для сигналов
-                          pyqtSignal)  # Для создания сигналов
+                          pyqtSignal,  # Для создания сигналов
+                          QTimer)  # Таймер
 from PyQt5.QtGui import QFont  # Шрифты
 import os
 import keyboard  # Для глобальных горячих клавиш (работает даже когда окно неактивно)
@@ -66,7 +68,11 @@ class MainWindow(QMainWindow):
         self.screenshot_path = None  # Путь к последнему сделанному скриншоту
         self.hotkey_handler = None  # Обработчик горячих клавиш
         self.top_table = None  # Хранение предметов для ТОП таблицы
-        # self.favorite_table = None  # Хранение предметов для таблицы избранного
+        self.items_data = {}  # Хранение всех предметов
+        self.search_timer = QTimer()  # Задержка поиска предметов
+        self.search_timer.setSingleShot(True)  # Таймер сработает только один раз
+        self.search_timer.timeout.connect(self.on_search_text_changed)  # Подключаем к методу поиска
+        self.current_search_text = ""  # Текущий текст поиска
         self.init_ui()  # Вызываем метод инициализации интерфейса
         self.center()  # Вызываем метод центрирования окна на экране
         self.init_hotkey_handler()  # Инициализируем обработчик горячих клавиш
@@ -81,13 +87,13 @@ class MainWindow(QMainWindow):
     def init_ui(self):
         """Метод для создания пользовательского интерфейса"""
         self.setWindowTitle("Детектор Tarkov")
-        self.setGeometry(0, 0, 1200, 800)\
+        self.setGeometry(0, 0, 1400, 800)
 
         # Создаем центральный виджет (обязательный элемент для QMainWindow)
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        # ========== ГЛАВНЫЙ ГОРИЗОНТАЛЬНЫЙ LAYOUT (две колонки) ==========
+        # ========== ГЛАВНЫЙ ГОРИЗОНТАЛЬНЫЙ LAYOUT (три колонки) ==========
         main_layout = QHBoxLayout(central_widget)
 
         # ========== ЛЕВАЯ КОЛОНКА (кнопки + консоль) ==========
@@ -154,15 +160,15 @@ class MainWindow(QMainWindow):
         """)
         left_layout.addWidget(self.console)
 
-        # Добавляем левую колонку в главный layout (занимает 60% ширины)
-        main_layout.addLayout(left_layout, 60)  # Stretch factor = 60
+        # Добавляем левую колонку в главный layout (занимает 50% ширины)
+        main_layout.addLayout(left_layout, 30)
 
-        # ========== ПРАВАЯ КОЛОНКА ==========
-        right_layout = QVBoxLayout()
+        # ========== СРЕДНЯЯ КОЛОНКА (ТОП ПРЕДМЕТОВ) ==========
+        middle_layout = QVBoxLayout()
 
         table_label = QLabel("Топ предметов:")
         table_label.setFont(QFont("Arial", 10, QFont.Bold))
-        right_layout.addWidget(table_label)
+        middle_layout.addWidget(table_label)
 
         # Создаем спинбокс для выбора числа от 1 до 20
         self.number_spinbox = QSpinBox()
@@ -175,11 +181,11 @@ class MainWindow(QMainWindow):
         custom_layout = QHBoxLayout()
         custom_layout.addWidget(QLabel("Количество выводимых предметов (1-20):"))
         custom_layout.addWidget(self.number_spinbox)
-        custom_layout.addStretch()  # Растягивает пустое пространство справа
-        right_layout.addLayout(custom_layout)
-        right_layout.addSpacing(10)
+        custom_layout.addStretch()
+        middle_layout.addLayout(custom_layout)
+        middle_layout.addSpacing(10)
 
-        # Создаем таблицу
+        # Создаем таблицу для топа
         self.top_table = QTableWidget()
         self.top_table.setFont(QFont("Arial", 10))
         self.top_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -210,13 +216,246 @@ class MainWindow(QMainWindow):
         self.top_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.top_table.setAlternatingRowColors(True)
 
-        right_layout.addWidget(self.top_table)
+        middle_layout.addWidget(self.top_table)
 
-        # Добавляем правую колонку в главный layout (занимает 40% ширины)
-        main_layout.addLayout(right_layout, 40)  # Stretch factor = 40
+        # Добавляем среднюю колонку в главный layout (занимает 35% ширины)
+        main_layout.addLayout(middle_layout, 35)
+
+        # ========== ПРАВАЯ КОЛОНКА (ПОИСК ПРЕДМЕТОВ) ==========
+        right_layout = QVBoxLayout()
+
+        search_label = QLabel("Поиск предметов:")
+        search_label.setFont(QFont("Arial", 10, QFont.Bold))
+        right_layout.addWidget(search_label)
+
+        # Создаем поле поиска
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Введите название предмета...")
+        self.search_input.setFont(QFont("Arial", 10))
+        self.search_input.textChanged.connect(self.perform_search)  # Подключаем сигнал изменения текста
+
+        # Стиль для поля ввода
+        self.search_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #2d2d2d;
+                color: #d4d4d4;
+                border: 1px solid #3c3c3c;
+                border-radius: 5px;
+                padding: 8px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #4CAF50;
+            }
+        """)
+
+        right_layout.addWidget(self.search_input)
+        right_layout.addSpacing(10)
+
+        # Метка с количеством найденных предметов
+        self.search_results_label = QLabel("Найдено предметов: 0")
+        self.search_results_label.setFont(QFont("Arial", 9))
+        right_layout.addWidget(self.search_results_label)
+        right_layout.addSpacing(5)
+
+        # Создаем таблицу для результатов поиска
+        self.search_table = QTableWidget()
+        self.search_table.setFont(QFont("Arial", 10))
+        self.search_table.setEditTriggers(QTableWidget.NoEditTriggers)  # Только чтение
+        self.search_table.setColumnCount(3)
+        self.search_table.setHorizontalHeaderLabels(["ShortName", "Name", "Price"])
+
+        self.search_table.setStyleSheet("""
+            QTableWidget {
+                background-color: #2d2d2d;
+                alternate-background-color: #3c3c3c;
+                gridline-color: #555555;
+                color: #d4d4d4;
+            }
+            QTableWidget::item {
+                padding: 5px;
+            }
+            QHeaderView::section {
+                background-color: #1e1e1e;
+                color: #ffffff;
+                padding: 8px;
+                border: 1px solid #3c3c3c;
+                font-weight: bold;
+            }
+        """)
+
+        self.search_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.search_table.setAlternatingRowColors(True)
+
+        right_layout.addWidget(self.search_table)
+
+        # Добавляем правую колонку в главный layout (занимает 35% ширины)
+        main_layout.addLayout(right_layout, 35)
+
+        # Загружаем данные предметов
+        self.load_items_data()
 
         # Устанавливаем начальное состояние кнопки-переключателя
         self.update_ui()
+
+    def perform_search(self, text):
+        """Выполняет поиск с текущим текстом"""
+        self.current_search_text = text
+        if not self.current_search_text or len(self.current_search_text) < 2:
+            self.search_table.setRowCount(0)
+            self.search_results_label.setText("Найдено предметов: 0")
+            return
+
+        self.search_timer.start(300)
+
+    def on_search_text_changed(self):
+        """Обработчик изменения текста в поле поиска"""
+        try:
+            self.append_to_console(f"Поиск: '{self.current_search_text}'")
+
+            if not hasattr(self, 'items_data') or not self.items_data:
+                print("items_data пуст или не существует")
+                return
+
+            search_text = self.current_search_text.lower()
+            filtered_items = []
+
+            # Обычный поиск по всем предметам
+            for item_shortname, item_data in self.items_data.items():
+                try:
+                    name = item_data.get("name", "")
+
+                    if not isinstance(name, str):
+                        name = str(name)
+
+                    if search_text in item_shortname.lower() or search_text in name.lower():
+                        price = item_data.get("price")
+
+                        if price is None:
+                            price = None  # Явно указываем, что данных нет
+                        else:
+                            # Пробуем преобразовать в число
+                            try:
+                                price = int(price)
+                            except (ValueError, TypeError):
+                                price = None
+
+                        filtered_items.append({
+                            "shortname": str(item_shortname),
+                            "name": name,
+                            "price": price
+                        })
+                except Exception as e:
+                    print(f"Ошибка обработки предмета {item_shortname}: {e}")
+                    continue
+
+            # Сортировка по цене (от дорогих к дешевым)
+            try:
+                filtered_items.sort(key=lambda x: (x["price"] is not None, x["price"] or 0), reverse=True)
+            except Exception as sort_error:
+                print(f"Ошибка при сортировке: {sort_error}")
+                # Если не удалось отсортировать, оставляем как есть
+
+            # Обновляем таблицу
+            self.update_search_table(filtered_items)
+            self.search_results_label.setText(f"Найдено предметов: {len(filtered_items)}")
+
+        except Exception as e:
+            print(f"Ошибка в поиске: {e}")
+            traceback.print_exc()
+
+    def update_search_table(self, items):
+        """Обновление таблицы результатов поиска"""
+        try:
+            if not hasattr(self, 'search_table') or self.search_table is None:
+                return
+
+            # Блокируем сигналы таблицы на время обновления
+            self.search_table.blockSignals(True)
+
+            # Очищаем таблицу
+            self.search_table.setRowCount(0)
+
+            # Если нет предметов - выходим
+            if not items:
+                self.search_table.blockSignals(False)
+                return
+
+            # Устанавливаем количество строк
+            self.search_table.setRowCount(len(items))
+
+            for row, item in enumerate(items):
+                try:
+                    # Колонка 1: Короткое название предмета
+                    shortname = str(item.get("shortname", ""))
+                    shortname_item = QTableWidgetItem(shortname)
+                    shortname_item.setTextAlignment(Qt.AlignCenter)
+                    self.search_table.setItem(row, 0, shortname_item)
+
+                    # Колонка 2: Полное название
+                    name = str(item.get("name", ""))
+                    name_item = QTableWidgetItem(name)
+                    name_item.setTextAlignment(Qt.AlignCenter)
+                    name_item.setToolTip(name)
+                    self.search_table.setItem(row, 1, name_item)
+
+                    # Колонка 3: Цена
+                    price = item.get("price")
+                    if price is None:
+                        price_str = "Н/Д"
+                    elif isinstance(price, int):
+                        price_str = f"{int(price):,}".replace(",", " ")
+                    else:
+                        try:
+                            # Пробуем преобразовать в число
+                            price_num = int(price)
+                            price_str = f"{price_num:,}".replace(",", " ")
+                        except (ValueError, TypeError):
+                            price_str = str(price)
+
+                    price_item = QTableWidgetItem(price_str)
+                    price_item.setTextAlignment(Qt.AlignCenter)
+                    self.search_table.setItem(row, 2, price_item)
+
+                except Exception as e:
+                    print(f"Ошибка при добавлении строки {row}: {e}")
+                    continue
+
+            # Разблокируем сигналы
+            self.search_table.blockSignals(False)
+
+        except Exception as e:
+            print(f"Ошибка при обновлении таблицы: {e}")
+            try:
+                self.search_table.blockSignals(False)
+            except Exception:
+                pass
+
+    def load_items_data(self):
+        """Загружает данные из parse/tarkov_items.json"""
+        try:
+            items_file = "parse/tarkov_items.json"
+
+            if not os.path.exists(items_file):
+                self.append_to_console(f"Файл {items_file} не найден", "red")
+                self.items_data = {}
+                return
+
+            with open(items_file, 'r', encoding='utf-8') as file:
+                loaded_data = json.load(file)
+
+            if isinstance(loaded_data, dict):
+                self.items_data = loaded_data
+            else:
+                self.append_to_console(f"Ошибка: ожидался словарь, получен {type(loaded_data)}", "red")
+                self.items_data = {}
+                return
+
+            self.append_to_console(f"Загружено {len(self.items_data)} предметов из parse/tarkov_items.json", "green")
+
+        except Exception as e:
+            print(f"Ошибка при загрузке данных: {e}")
+            traceback.print_exc()
+            self.items_data = {}
 
     def on_hotkey_activated(self):
         """Обработчик активации горячей клавиши Shift+L (вызывается в основном потоке GUI)"""

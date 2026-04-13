@@ -7,7 +7,6 @@
     <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Смещение таблицы вправо">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/parse/parser.py" beforeDir="false" afterPath="$PROJECT_DIR$/parse/parser.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
