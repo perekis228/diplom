@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Смещение таблицы вправо">
+    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Добавлены поиск предметов и их вывод в таблицу">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui.py" afterDir="false" />
     </list>
@@ -289,7 +289,15 @@
       <option name="project" value="LOCAL" />
       <updated>1775914837557</updated>
     </task>
-    <option name="localTasksCounter" value="18" />
+    <task id="LOCAL-00018" summary="Добавлены поиск предметов и их вывод в таблицу">
+      <option name="closed" value="true" />
+      <created>1776085753144</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1776085753145</updated>
+    </task>
+    <option name="localTasksCounter" value="19" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -320,6 +328,7 @@
     <MESSAGE value="В gui.py теперь есть таблица с топ 5 дорогих предметов" />
     <MESSAGE value="Исправлена ошибка вылета" />
     <MESSAGE value="Смещение таблицы вправо" />
-    <option name="LAST_COMMIT_MESSAGE" value="Смещение таблицы вправо" />
+    <MESSAGE value="Добавлены поиск предметов и их вывод в таблицу" />
+    <option name="LAST_COMMIT_MESSAGE" value="Добавлены поиск предметов и их вывод в таблицу" />
   </component>
 </project>

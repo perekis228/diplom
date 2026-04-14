@@ -11,7 +11,9 @@ from PyQt5.QtWidgets import (QApplication,  # Главный класс прил
                              QTableWidgetItem,  # Редактор ячейки таблицы
                              QHeaderView,  # Редактор заголовка таблицы
                              QSpinBox,  # Окно ввода чисел
-                             QLineEdit)  # Окно ввода текста
+                             QLineEdit,  # Окно ввода текста
+                             QMenu,
+                             QAction)
 from PyQt5.QtCore import (Qt,  # Константы
                           QProcess,  # Для запуска внешних программ
                           QObject,  # Для сигналов
@@ -264,6 +266,10 @@ class MainWindow(QMainWindow):
         self.search_table.setColumnCount(3)
         self.search_table.setHorizontalHeaderLabels(["ShortName", "Name", "Price"])
 
+        # Включаем контекстное меню
+        self.search_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.search_table.customContextMenuRequested.connect(self.show_context_menu)
+
         self.search_table.setStyleSheet("""
             QTableWidget {
                 background-color: #2d2d2d;
@@ -296,6 +302,56 @@ class MainWindow(QMainWindow):
 
         # Устанавливаем начальное состояние кнопки-переключателя
         self.update_ui()
+
+    def show_context_menu(self, position):
+        # Координаты в индекс ячейки
+        index = self.search_table.indexAt(position)
+
+        if index.isValid():
+            # Всплывающее окно
+            menu = QMenu()
+            add_to_favorite_action = QAction("Добавить в избранное", self.search_table)
+            # Подключаем триггер и передаем только номер строки
+            add_to_favorite_action.triggered.connect(lambda: self.add_to_favorite(index.row()))
+            menu.addAction(add_to_favorite_action)
+            # Показывает меню и блокирует выполнение кода, пока пользователь не выберет пункт или не кликнет мимо
+            menu.exec_(self.search_table.viewport().mapToGlobal(position))
+
+    def add_to_favorite(self, row):
+        short_name = self.search_table.item(row, 0).text()
+        name = self.search_table.item(row, 1).text()
+        price = self.search_table.item(row, 2).text()
+
+        file_path = "favorite.json"
+
+        favorites = {}
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    favorites = json.load(f)
+            except (json.JSONDecodeError, FileNotFoundError):
+                favorites = {}
+
+        # Проверяем, есть ли уже такой товар в избранном
+        if short_name in favorites:
+            self.append_to_console(f"Товар '{short_name}' уже есть в избранном")
+            return
+
+        # Добавляем новый элемент
+        favorites[short_name] = {
+            "name": name,
+            "price": price
+        }
+
+        # Сохраняем в файл
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(favorites, f, ensure_ascii=False, indent=4)
+
+            self.append_to_console(f"Товар '{short_name}' добавлен в избранное")
+
+        except Exception as e:
+            self.append_to_console(f"Не удалось сохранить в избранное: {str(e)}")
 
     def perform_search(self, text):
         """Выполняет поиск с текущим текстом"""
