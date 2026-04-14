@@ -12,8 +12,8 @@ from PyQt5.QtWidgets import (QApplication,  # Главный класс прил
                              QHeaderView,  # Редактор заголовка таблицы
                              QSpinBox,  # Окно ввода чисел
                              QLineEdit,  # Окно ввода текста
-                             QMenu,
-                             QAction)
+                             QMenu,  # Всплывающее окно
+                             QAction)  # Действие для всплывающего окна
 from PyQt5.QtCore import (Qt,  # Константы
                           QProcess,  # Для запуска внешних программ
                           QObject,  # Для сигналов
@@ -24,6 +24,7 @@ import os
 import keyboard  # Для глобальных горячих клавиш (работает даже когда окно неактивно)
 import json
 import traceback
+from functools import partial
 
 
 # Создаем класс-посредник для обработки горячих клавиш в отдельном потоке
@@ -70,7 +71,8 @@ class MainWindow(QMainWindow):
         self.screenshot_path = None  # Путь к последнему сделанному скриншоту
         self.hotkey_handler = None  # Обработчик горячих клавиш
         self.top_table = None  # Хранение предметов для ТОП таблицы
-        self.items_data = {}  # Хранение всех предметов
+        self.all_items_data = {}  # Хранение всех предметов
+        self.favortite_items_data = {}  # Хранение избранного
         self.search_timer = QTimer()  # Задержка поиска предметов
         self.search_timer.setSingleShot(True)  # Таймер сработает только один раз
         self.search_timer.timeout.connect(self.on_search_text_changed)  # Подключаем к методу поиска
@@ -78,7 +80,6 @@ class MainWindow(QMainWindow):
         self.init_ui()  # Вызываем метод инициализации интерфейса
         self.center()  # Вызываем метод центрирования окна на экране
         self.init_hotkey_handler()  # Инициализируем обработчик горячих клавиш
-
 
     def init_hotkey_handler(self):
         """Инициализирует обработчик горячих клавиш"""
@@ -89,7 +90,7 @@ class MainWindow(QMainWindow):
     def init_ui(self):
         """Метод для создания пользовательского интерфейса"""
         self.setWindowTitle("Детектор Tarkov")
-        self.setGeometry(0, 0, 1400, 800)
+        self.setGeometry(0, 0, 1800, 800)
 
         # Создаем центральный виджет (обязательный элемент для QMainWindow)
         central_widget = QWidget()
@@ -98,8 +99,8 @@ class MainWindow(QMainWindow):
         # ========== ГЛАВНЫЙ ГОРИЗОНТАЛЬНЫЙ LAYOUT (три колонки) ==========
         main_layout = QHBoxLayout(central_widget)
 
-        # ========== ЛЕВАЯ КОЛОНКА (кнопки + консоль) ==========
-        left_layout = QVBoxLayout()
+        # ========== ПЕРВАЯ КОЛОНКА (кнопки + консоль) ==========
+        first_layout = QVBoxLayout()
 
         # ВЕРХНЯЯ ПАНЕЛЬ С КНОПКАМИ
         top_layout = QVBoxLayout()
@@ -140,12 +141,12 @@ class MainWindow(QMainWindow):
 
         top_layout.addLayout(button_layout)
 
-        left_layout.addLayout(top_layout)
+        first_layout.addLayout(top_layout)
 
         # ========== КОНСОЛЬ ДЛЯ ВЫВОДА ==========
         console_label = QLabel("Консоль вывода:")
         console_label.setFont(QFont("Arial", 10, QFont.Bold))
-        left_layout.addWidget(console_label)
+        first_layout.addWidget(console_label)
 
         # Создаем текстовое поле для консоли
         self.console = QTextEdit()
@@ -160,17 +161,17 @@ class MainWindow(QMainWindow):
                 border-radius: 5px;
             }
         """)
-        left_layout.addWidget(self.console)
+        first_layout.addWidget(self.console)
 
-        # Добавляем левую колонку в главный layout (занимает 50% ширины)
-        main_layout.addLayout(left_layout, 30)
+        # Добавляем колонку в главный layout (занимает 25% ширины)
+        main_layout.addLayout(first_layout, 30)
 
-        # ========== СРЕДНЯЯ КОЛОНКА (ТОП ПРЕДМЕТОВ) ==========
-        middle_layout = QVBoxLayout()
+        # ========== ВТОРАЯ КОЛОНКА (ТОП ПРЕДМЕТОВ) ==========
+        second_layout = QVBoxLayout()
 
         table_label = QLabel("Топ предметов:")
         table_label.setFont(QFont("Arial", 10, QFont.Bold))
-        middle_layout.addWidget(table_label)
+        second_layout.addWidget(table_label)
 
         # Создаем спинбокс для выбора числа от 1 до 20
         self.number_spinbox = QSpinBox()
@@ -184,8 +185,8 @@ class MainWindow(QMainWindow):
         custom_layout.addWidget(QLabel("Количество выводимых предметов (1-20):"))
         custom_layout.addWidget(self.number_spinbox)
         custom_layout.addStretch()
-        middle_layout.addLayout(custom_layout)
-        middle_layout.addSpacing(10)
+        second_layout.addLayout(custom_layout)
+        second_layout.addSpacing(10)
 
         # Создаем таблицу для топа
         self.top_table = QTableWidget()
@@ -218,17 +219,17 @@ class MainWindow(QMainWindow):
         self.top_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.top_table.setAlternatingRowColors(True)
 
-        middle_layout.addWidget(self.top_table)
+        second_layout.addWidget(self.top_table)
 
-        # Добавляем среднюю колонку в главный layout (занимает 35% ширины)
-        main_layout.addLayout(middle_layout, 35)
+        # Добавляем колонку в главный layout (занимает 25% ширины)
+        main_layout.addLayout(second_layout, 35)
 
-        # ========== ПРАВАЯ КОЛОНКА (ПОИСК ПРЕДМЕТОВ) ==========
-        right_layout = QVBoxLayout()
+        # ========== ТРЕТЬЯ КОЛОНКА (ПОИСК ПРЕДМЕТОВ) ==========
+        third_layout = QVBoxLayout()
 
         search_label = QLabel("Поиск предметов:")
         search_label.setFont(QFont("Arial", 10, QFont.Bold))
-        right_layout.addWidget(search_label)
+        third_layout.addWidget(search_label)
 
         # Создаем поле поиска
         self.search_input = QLineEdit()
@@ -250,14 +251,14 @@ class MainWindow(QMainWindow):
             }
         """)
 
-        right_layout.addWidget(self.search_input)
-        right_layout.addSpacing(10)
+        third_layout.addWidget(self.search_input)
+        third_layout.addSpacing(10)
 
         # Метка с количеством найденных предметов
         self.search_results_label = QLabel("Найдено предметов: 0")
         self.search_results_label.setFont(QFont("Arial", 9))
-        right_layout.addWidget(self.search_results_label)
-        right_layout.addSpacing(5)
+        third_layout.addWidget(self.search_results_label)
+        third_layout.addSpacing(5)
 
         # Создаем таблицу для результатов поиска
         self.search_table = QTableWidget()
@@ -292,63 +293,169 @@ class MainWindow(QMainWindow):
         self.search_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.search_table.setAlternatingRowColors(True)
 
-        right_layout.addWidget(self.search_table)
+        third_layout.addWidget(self.search_table)
 
-        # Добавляем правую колонку в главный layout (занимает 35% ширины)
-        main_layout.addLayout(right_layout, 35)
+        # Добавляем колонку в главный layout (занимает 25% ширины)
+        main_layout.addLayout(third_layout, 25)
 
-        # Загружаем данные предметов
-        self.load_items_data()
+        # Загружаем данные всех предметов
+        self.load_items_data("parse/tarkov_items.json", self.all_items_data)
+
+        # ========== ЧЕТВЁРТАЯ КОЛОНКА (ПОИСК ПРЕДМЕТОВ) ==========
+        forth_layout = QVBoxLayout()
+
+        favorite_label = QLabel("Избранное:")
+        favorite_label.setFont(QFont("Arial", 10, QFont.Bold))
+        forth_layout.addWidget(favorite_label)
+
+        # Таблица для избранного
+        self.favorite_table = QTableWidget()
+        self.favorite_table.setFont(QFont("Arial", 10))
+        self.favorite_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.favorite_table.setColumnCount(3)
+        self.favorite_table.setHorizontalHeaderLabels(["ShortName", "Name", "Price"])
+
+        # Включаем контекстное меню
+        self.favorite_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.favorite_table.customContextMenuRequested.connect(self.show_context_menu)
+
+        self.favorite_table.setStyleSheet("""
+            QTableWidget {
+                background-color: #2d2d2d;
+                alternate-background-color: #3c3c3c;
+                gridline-color: #555555;
+                color: #d4d4d4;
+            }
+            QTableWidget::item {
+                padding: 5px;
+            }
+            QHeaderView::section {
+                background-color: #1e1e1e;
+                color: #ffffff;
+                padding: 8px;
+                border: 1px solid #3c3c3c;
+                font-weight: bold;
+            }
+        """)
+
+        self.favorite_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.favorite_table.setAlternatingRowColors(True)
+
+        forth_layout.addWidget(self.favorite_table)
+
+        # Добавляем колонку в главный layout (занимает 25% ширины)
+        main_layout.addLayout(forth_layout, 25)
+
+        # Загружаем данные избранных предметов
+        self.load_items_data("favorite.json", self.favortite_items_data)
+        self.favorite_table_update()
 
         # Устанавливаем начальное состояние кнопки-переключателя
         self.update_ui()
 
+    def favorite_table_update(self):
+        """Обновление таблицы favorite"""
+        try:
+            if not hasattr(self, 'favorite_table') or self.favorite_table is None:
+                return
+
+            # Блокируем сигналы таблицы на время обновления
+            self.favorite_table.blockSignals(True)
+
+            # Очищаем таблицу
+            self.favorite_table.setRowCount(0)
+
+            # Сортировка
+            sorted_data = dict(sorted(self.favortite_items_data.items()))
+
+            # Устанавливаем количество строк
+            self.favorite_table.setRowCount(len(sorted_data))
+
+            for row, (shortname, item) in enumerate(sorted_data.items()):
+                try:
+                    # Колонка 1: Короткое название предмета
+                    shortname_item = QTableWidgetItem(shortname)
+                    shortname_item.setTextAlignment(Qt.AlignCenter)
+                    self.favorite_table.setItem(row, 0, shortname_item)
+
+                    # Колонка 2: Полное название
+                    name = str(item.get("name", ""))
+                    name_item = QTableWidgetItem(name)
+                    name_item.setTextAlignment(Qt.AlignCenter)
+                    name_item.setToolTip(name)
+                    self.favorite_table.setItem(row, 1, name_item)
+
+                    # Колонка 3: Цена
+                    price = item.get("price")
+                    price_item = QTableWidgetItem(price)
+                    price_item.setTextAlignment(Qt.AlignCenter)
+                    self.favorite_table.setItem(row, 2, price_item)
+
+                except Exception as e:
+                    print(f"Ошибка при добавлении строки {row}: {e}")
+                    continue
+
+            # Разблокируем сигналы
+            self.favorite_table.blockSignals(False)
+
+        except Exception as e:
+            print(f"Ошибка при обновлении таблицы: {e}")
+            try:
+                self.favorite_table.blockSignals(False)
+            except Exception:
+                pass
+
     def show_context_menu(self, position):
+        # Таблица, которая вызвала сигнал
+        table = self.sender()
+
         # Координаты в индекс ячейки
-        index = self.search_table.indexAt(position)
+        index = table.indexAt(position)
 
         if index.isValid():
             # Всплывающее окно
             menu = QMenu()
-            add_to_favorite_action = QAction("Добавить в избранное", self.search_table)
+            add_to_favorite_action = QAction("Добавить в избранное", table)
             # Подключаем триггер и передаем только номер строки
-            add_to_favorite_action.triggered.connect(lambda: self.add_to_favorite(index.row()))
+            add_to_favorite_action.triggered.connect(partial(self.add_to_favorite, table, index.row()))
             menu.addAction(add_to_favorite_action)
             # Показывает меню и блокирует выполнение кода, пока пользователь не выберет пункт или не кликнет мимо
-            menu.exec_(self.search_table.viewport().mapToGlobal(position))
+            menu.exec_(table.viewport().mapToGlobal(position))
 
-    def add_to_favorite(self, row):
-        short_name = self.search_table.item(row, 0).text()
-        name = self.search_table.item(row, 1).text()
-        price = self.search_table.item(row, 2).text()
-
-        file_path = "favorite.json"
-
-        favorites = {}
-        if os.path.exists(file_path):
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    favorites = json.load(f)
-            except (json.JSONDecodeError, FileNotFoundError):
-                favorites = {}
-
-        # Проверяем, есть ли уже такой товар в избранном
-        if short_name in favorites:
-            self.append_to_console(f"Товар '{short_name}' уже есть в избранном")
-            return
-
-        # Добавляем новый элемент
-        favorites[short_name] = {
-            "name": name,
-            "price": price
-        }
-
-        # Сохраняем в файл
+    def add_to_favorite(self, table, row):
         try:
+            short_name = table.item(row, 0).text()
+            name = table.item(row, 1).text()
+            price = table.item(row, 2).text()
+
+            file_path = "favorite.json"
+
+            favorites = {}
+            if os.path.exists(file_path):
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        favorites = json.load(f)
+                except (json.JSONDecodeError, FileNotFoundError):
+                    favorites = {}
+
+            # Проверяем, есть ли уже такой товар в избранном
+            if short_name in favorites:
+                self.append_to_console(f"Товар '{short_name}' уже есть в избранном")
+                return
+
+            # Добавляем новый элемент
+            favorites[short_name] = {
+                "name": name,
+                "price": price
+            }
+
+            # Сохраняем в файл
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(favorites, f, ensure_ascii=False, indent=4)
 
             self.append_to_console(f"Товар '{short_name}' добавлен в избранное")
+            self.favortite_items_data = favorites
+            self.favorite_table_update()
 
         except Exception as e:
             self.append_to_console(f"Не удалось сохранить в избранное: {str(e)}")
@@ -368,7 +475,7 @@ class MainWindow(QMainWindow):
         try:
             self.append_to_console(f"Поиск: '{self.current_search_text}'")
 
-            if not hasattr(self, 'items_data') or not self.items_data:
+            if not hasattr(self, 'all_items_data') or not self.all_items_data:
                 print("items_data пуст или не существует")
                 return
 
@@ -376,7 +483,7 @@ class MainWindow(QMainWindow):
             filtered_items = []
 
             # Обычный поиск по всем предметам
-            for item_shortname, item_data in self.items_data.items():
+            for item_shortname, item_data in self.all_items_data.items():
                 try:
                     name = item_data.get("name", "")
 
@@ -486,32 +593,31 @@ class MainWindow(QMainWindow):
             except Exception:
                 pass
 
-    def load_items_data(self):
-        """Загружает данные из parse/tarkov_items.json"""
+    def load_items_data(self, items_file, items_data):
+        """Загружает данные из json"""
         try:
-            items_file = "parse/tarkov_items.json"
-
             if not os.path.exists(items_file):
                 self.append_to_console(f"Файл {items_file} не найден", "red")
-                self.items_data = {}
+                items_data.clear()
                 return
 
             with open(items_file, 'r', encoding='utf-8') as file:
                 loaded_data = json.load(file)
 
             if isinstance(loaded_data, dict):
-                self.items_data = loaded_data
+                items_data.clear()
+                items_data.update(loaded_data)
             else:
                 self.append_to_console(f"Ошибка: ожидался словарь, получен {type(loaded_data)}", "red")
-                self.items_data = {}
+                items_data.clear()
                 return
 
-            self.append_to_console(f"Загружено {len(self.items_data)} предметов из parse/tarkov_items.json", "green")
+            self.append_to_console(f"Загружено {len(items_data)} предметов из {items_file}", "green")
 
         except Exception as e:
             print(f"Ошибка при загрузке данных: {e}")
             traceback.print_exc()
-            self.items_data = {}
+            items_data.clear()
 
     def on_hotkey_activated(self):
         """Обработчик активации горячей клавиши Shift+L (вызывается в основном потоке GUI)"""
@@ -611,7 +717,7 @@ class MainWindow(QMainWindow):
             self.append_to_console(f"parser.py завершил работу с кодом {exit_code}", "yellow")
             # Если успешный парсинг, то обновляем таблицу
             if exit_code == 0:
-                self.table_update()
+                self.top_table_update()
         else:  # Если аварийное завершение
             self.append_to_console(f"parser.py был аварийно завершен", "red")
 
@@ -879,7 +985,7 @@ class MainWindow(QMainWindow):
             self.append_to_console(f"overlay.py был аварийно завершен", "red")
         self.overlay_process = None
 
-    def table_update(self):
+    def top_table_update(self):
         """Обновляет таблицу данными из top.json"""
         # Проверяем, что таблица существует
         if self.top_table is None:
