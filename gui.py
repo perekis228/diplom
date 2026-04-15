@@ -415,10 +415,15 @@ class MainWindow(QMainWindow):
         if index.isValid():
             # Всплывающее окно
             menu = QMenu()
-            add_to_favorite_action = QAction("Добавить в избранное", table)
-            # Подключаем триггер и передаем только номер строки
-            add_to_favorite_action.triggered.connect(partial(self.add_to_favorite, table, index.row()))
-            menu.addAction(add_to_favorite_action)
+            if table != self.favorite_table:
+                add_to_favorite_action = QAction("Добавить в избранное", table)
+                # Подключаем триггер и передаем только номер строки
+                add_to_favorite_action.triggered.connect(partial(self.add_to_favorite, table, index.row()))
+                menu.addAction(add_to_favorite_action)
+
+            del_from_favorite_action = QAction("Удалить из избранного", table)
+            del_from_favorite_action.triggered.connect(partial(self.del_from_favorite, table, index.row()))
+            menu.addAction(del_from_favorite_action)
             # Показывает меню и блокирует выполнение кода, пока пользователь не выберет пункт или не кликнет мимо
             menu.exec_(table.viewport().mapToGlobal(position))
 
@@ -454,6 +459,39 @@ class MainWindow(QMainWindow):
                 json.dump(favorites, f, ensure_ascii=False, indent=4)
 
             self.append_to_console(f"Товар '{short_name}' добавлен в избранное")
+            self.favortite_items_data = favorites
+            self.favorite_table_update()
+
+        except Exception as e:
+            self.append_to_console(f"Не удалось сохранить в избранное: {str(e)}")
+
+    def del_from_favorite(self, table, row):
+        try:
+            short_name = table.item(row, 0).text()
+
+            file_path = "favorite.json"
+
+            favorites = {}
+            if os.path.exists(file_path):
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        favorites = json.load(f)
+                except (json.JSONDecodeError, FileNotFoundError):
+                    favorites = {}
+
+            # Проверяем, есть ли уже такой товар в избранном
+            if short_name not in favorites:
+                self.append_to_console(f"Товара '{short_name}' нет в избранном")
+                return
+
+            # Добавляем новый элемент
+            del favorites[short_name]
+
+            # Сохраняем в файл
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(favorites, f, ensure_ascii=False, indent=4)
+
+            self.append_to_console(f"Товар '{short_name}' удалён из избранного")
             self.favortite_items_data = favorites
             self.favorite_table_update()
 
