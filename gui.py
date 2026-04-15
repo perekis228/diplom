@@ -126,7 +126,7 @@ class MainWindow(QMainWindow):
         # Кнопка создания скриншота и запуска detection.py
         self.run_button = QPushButton("Сделать скриншот и запустить detection.py (Shift+L)")
         self.run_button.clicked.connect(self.take_screenshot_and_run)
-        button_layout.addWidget(self.run_button)
+        top_layout.addWidget(self.run_button)
         self.run_button.setEnabled(False)
 
         # Кнопка запуска parser.py
@@ -308,6 +308,11 @@ class MainWindow(QMainWindow):
         favorite_label.setFont(QFont("Arial", 10, QFont.Bold))
         forth_layout.addWidget(favorite_label)
 
+        # Кнопка очистки избранного
+        del_button = QPushButton("Очистить избранное")
+        del_button.clicked.connect(self.clear_favorite)
+        forth_layout.addWidget(del_button)
+
         # Таблица для избранного
         self.favorite_table = QTableWidget()
         self.favorite_table.setFont(QFont("Arial", 10))
@@ -352,6 +357,18 @@ class MainWindow(QMainWindow):
 
         # Устанавливаем начальное состояние кнопки-переключателя
         self.update_ui()
+
+    def clear_favorite(self):
+        try:
+            self.favortite_items_data.clear()
+            file_path = "favorite.json"
+            if os.path.exists(file_path):
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(self.favortite_items_data, f)
+            self.favorite_table_update()
+            self.append_to_console("Избранное очищено")
+        except Exception as e:
+            self.append_to_console(f"Не удалось очистить избранное: {str(e)}")
 
     def favorite_table_update(self):
         """Обновление таблицы favorite"""
