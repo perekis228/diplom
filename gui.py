@@ -176,6 +176,7 @@ class MainWindow(QMainWindow):
         self.search_timer.setSingleShot(True)  # Таймер сработает только один раз
         self.search_timer.timeout.connect(self.on_search_text_changed)  # Подключаем к методу поиска
         self.current_search_text = ""  # Текущий текст поиска
+        self.n_items_for_detection = 5
         self.init_ui()  # Вызываем метод инициализации интерфейса
         self.center()  # Вызываем метод центрирования окна на экране
         self.init_hotkey_handler()  # Инициализируем обработчик горячих клавиш
@@ -467,8 +468,10 @@ class MainWindow(QMainWindow):
     def on_switch_toggled(self, checked):
         """Срабатывает при изменении состояния"""
         if checked:
+            self.n_items_for_detection = 10
             self.append_to_console(f"Отображение 10 предметов")
         else:
+            self.n_items_for_detection = 5
             self.append_to_console(f"Отображение 5 предметов")
 
     def clear_favorite(self):
@@ -946,9 +949,11 @@ class MainWindow(QMainWindow):
             # Сигнал started - когда процесс успешно запустился
             self.detection_process.started.connect(self.process_started_detection)
 
-            # Запускаем detection.py и передаем путь к скриншоту как аргумент командной строки
+            # Запускаем detection.py и передаем путь к скриншоту и количество предметов как аргументы командной строки
             # sys.executable - путь к текущему интерпретатору Python
-            self.detection_process.start(sys.executable, ["detection.py", self.screenshot_path])
+            self.detection_process.start(sys.executable, ["detection.py",
+                                                          self.screenshot_path,
+                                                          str(self.n_items_for_detection)])
 
             # Ждем запуска процесса максимум 3 секунды
             if not self.detection_process.waitForStarted(3000):

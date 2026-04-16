@@ -97,10 +97,11 @@ def detect_items(image_path: str, model_path: str, items_data: Dict[str, Dict[st
 def main():
     if len(sys.argv) > 1:
         path = sys.argv[1]  # Путь к скриншоту
+        n_output = int(sys.argv[2])
         print(f"Получен путь к скриншоту: {path}")
         items_data = load_items_data('parse/tarkov_items.json')
         items = detect_items(path, 'best.pt', items_data, 0.7)
-        print(json.dumps(items[:5]))
+        print(json.dumps(items[:n_output]))
     else:
         print("Ошибка: путь к скриншоту не передан")
 
