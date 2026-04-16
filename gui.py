@@ -13,13 +13,22 @@ from PyQt5.QtWidgets import (QApplication,  # Главный класс прил
                              QSpinBox,  # Окно ввода чисел
                              QLineEdit,  # Окно ввода текста
                              QMenu,  # Всплывающее окно
-                             QAction)  # Действие для всплывающего окна
+                             QAction,  # Действие для всплывающего окна
+                             QAbstractButton)  # База для switch
 from PyQt5.QtCore import (Qt,  # Константы
                           QProcess,  # Для запуска внешних программ
                           QObject,  # Для сигналов
                           pyqtSignal,  # Для создания сигналов
-                          QTimer)  # Таймер
-from PyQt5.QtGui import QFont  # Шрифты
+                          QTimer,  # Таймер
+                          QPropertyAnimation,  # Анимация свойств виджета (плавное изменение)
+                          QEasingCurve,  # Кривые ускорения/замедления анимации
+                          pyqtProperty,  # Декоратор для создания Qt-свойств (переводчик для с++)
+                          QRect)  # Прямоугольник
+from PyQt5.QtGui import (QFont,  # Шрифты
+                         QPainter,  # Рисование
+                         QColor,  # Цвета
+                         QBrush,  # Заливка
+                         QPen)  # Стиль линий
 import os
 import keyboard  # Для глобальных горячих клавиш (работает даже когда окно неактивно)
 import json
@@ -59,6 +68,96 @@ class HotkeyHandler(QObject):
                 self.hotkey_global = None
             except Exception as e:
                 print(f"Ошибка отключения горячей клавиши: {e}")
+
+
+class Switch(QAbstractButton):
+    # Сигнал должен быть определен как атрибут класса ДО __init__
+    toggled = pyqtSignal(bool)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(90, 45)
+        self.setCursor(Qt.PointingHandCursor)  # Замена курсора на палец
+        self._checked = False  # Выкл
+        self._offset = 3  # Смещение ползунка от левого края
+
+        # Анимация
+        self.animation = QPropertyAnimation(self, b"offset")  # Плавное изменение состояния offset
+        self.animation.setDuration(200)
+        self.animation.setEasingCurve(QEasingCurve.InOutQuad)  # Смягчение анимации
+
+    def isChecked(self):
+        return self._checked
+
+    def setChecked(self, checked):
+        if self._checked != checked:
+            self._checked = checked
+            self.start_animation()
+            self.toggled.emit(checked)  # Теперь сигнал существует
+
+    def nextCheckState(self):
+        self.setChecked(not self._checked)
+
+    @pyqtProperty(float)  # Переводчик для с++
+    def offset(self):
+        return self._offset
+
+    @offset.setter
+    def offset(self, value):
+        self._offset = value
+        self.update()
+
+    def start_animation(self):
+        self.animation.stop()  # Если есть прошлая анимация, она останавливается во избежание конфликтов
+        if self._checked:
+            target_offset = self.width() - self.height() + 3  # Отступ для вкл
+        else:
+            target_offset = 3  # Отступ для выкл
+
+        self.animation.setStartValue(self._offset)
+        self.animation.setEndValue(target_offset)
+        self.animation.start()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)  # Объект рисования
+        painter.setRenderHint(QPainter.Antialiasing)  # Сглаживание для окружностей
+        radius = self.height() // 2  # Радиус сглаживания
+
+        # Фон
+        if self._checked:
+            bg_color = QColor(0, 150, 136)  # Бирюзовый
+            text = "10"
+        else:
+            bg_color = QColor(150, 150, 150)  # Серый
+            text = "5"
+
+        painter.setBrush(QBrush(bg_color))  # Кисть для заливки
+        painter.setPen(Qt.NoPen)  # Отключение обводки при рисовании
+        painter.drawRoundedRect(0, 0, self.width(), self.height(), radius, radius)
+
+        # Вычисляем параметры круга
+        circle_size = self.height() - 6  # Диаметр круга
+        circle_x = int(self._offset)  # X координата
+        circle_y = 3  # Y координата
+
+        # Ручка - используем текущий offset
+        painter.setBrush(QBrush(QColor(255, 255, 255)))
+        painter.drawEllipse(circle_x, circle_y, circle_size, circle_size)
+
+        # Создаём прямоугольник точно по размеру круга
+        circle_rect = QRect(circle_x, circle_y, circle_size, circle_size)
+
+        # Настраиваем шрифт
+        font = painter.font()
+        font.setPointSize(circle_size // 3)  # Размер шрифта = 1/3 диаметра
+        painter.setFont(font)
+
+        # Рисуем текст внутри круга
+        painter.setPen(QPen(QColor(0, 0, 0)))
+        painter.drawText(circle_rect, Qt.AlignCenter, text)
+
+    def mousePressEvent(self, event):
+        self.nextCheckState()
 
 
 class MainWindow(QMainWindow):
@@ -119,6 +218,13 @@ class MainWindow(QMainWindow):
         self.toggle_button.clicked.connect(self.toggle_status)
         top_layout.addWidget(self.toggle_button, alignment=Qt.AlignCenter)
         top_layout.addSpacing(20)
+
+        # Создаем switch
+        self.switch = Switch()
+
+        # Подключаем сигнал изменения состояния
+        self.switch.toggled.connect(self.on_switch_toggled)
+        top_layout.addWidget(self.switch, alignment=Qt.AlignCenter)
 
         # Создаем горизонтальный layout для группы кнопок управления
         button_layout = QHBoxLayout()
@@ -357,6 +463,13 @@ class MainWindow(QMainWindow):
 
         # Устанавливаем начальное состояние кнопки-переключателя
         self.update_ui()
+
+    def on_switch_toggled(self, checked):
+        """Срабатывает при изменении состояния"""
+        if checked:
+            self.append_to_console(f"Отображение 10 предметов")
+        else:
+            self.append_to_console(f"Отображение 5 предметов")
 
     def clear_favorite(self):
         try:
