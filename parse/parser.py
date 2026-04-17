@@ -368,14 +368,15 @@ class Parser:
 
         top = sorted_items[:count]
 
-        result = [
-            {
-                'shortName': item['shortName'],
-                'avg24hPrice': item['avg24hPrice'],
-                'name': item['name']
+        result = {
+            "items": {
+                item['shortName']: {
+                    'name': item['name'],
+                    'avg24hPrice': item['avg24hPrice']
+                }
+                for item in top
             }
-            for item in top
-        ]
+        }
 
         file_path = PARSER_DIR / top_file
         with open(file_path, 'w', encoding='utf-8') as f:

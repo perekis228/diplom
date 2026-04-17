@@ -171,7 +171,7 @@ class MainWindow(QMainWindow):
         self.hotkey_handler = None  # Обработчик горячих клавиш
         self.top_table = None  # Хранение предметов для ТОП таблицы
         self.all_items_data = {}  # Хранение всех предметов
-        self.favortite_items_data = {}  # Хранение избранного
+        self.favorite_items_data = {}  # Хранение избранного
         self.search_timer = QTimer()  # Задержка поиска предметов
         self.search_timer.setSingleShot(True)  # Таймер сработает только один раз
         self.search_timer.timeout.connect(self.on_search_text_changed)  # Подключаем к методу поиска
@@ -459,7 +459,7 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(forth_layout, 25)
 
         # Загружаем данные избранных предметов
-        self.load_items_data("favorite.json", self.favortite_items_data)
+        self.load_items_data("favorite.json", self.favorite_items_data)
         self.favorite_table_update()
 
         # Устанавливаем начальное состояние кнопки-переключателя
@@ -476,11 +476,13 @@ class MainWindow(QMainWindow):
 
     def clear_favorite(self):
         try:
-            self.favortite_items_data.clear()
+            self.favorite_items_data.clear()
             file_path = "favorite.json"
+
+            to_load = {"items": self.favorite_items_data}
             if os.path.exists(file_path):
                 with open(file_path, 'w', encoding='utf-8') as f:
-                    json.dump(self.favortite_items_data, f)
+                    json.dump(to_load, f)
             self.favorite_table_update()
             self.append_to_console("Избранное очищено")
         except Exception as e:
@@ -499,7 +501,7 @@ class MainWindow(QMainWindow):
             self.favorite_table.setRowCount(0)
 
             # Сортировка
-            sorted_data = dict(sorted(self.favortite_items_data.items()))
+            sorted_data = dict(sorted(self.favorite_items_data.items()))
 
             # Устанавливаем количество строк
             self.favorite_table.setRowCount(len(sorted_data))
@@ -572,7 +574,7 @@ class MainWindow(QMainWindow):
             if os.path.exists(file_path):
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
-                        favorites = json.load(f)
+                        favorites = json.load(f).get("items", {})
                 except (json.JSONDecodeError, FileNotFoundError):
                     favorites = {}
 
@@ -587,12 +589,13 @@ class MainWindow(QMainWindow):
                 "price": price
             }
 
+            to_load = {"items": favorites}
             # Сохраняем в файл
             with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(favorites, f, ensure_ascii=False, indent=4)
+                json.dump(to_load, f, ensure_ascii=False, indent=4)
 
             self.append_to_console(f"Товар '{short_name}' добавлен в избранное")
-            self.favortite_items_data = favorites
+            self.favorite_items_data = favorites
             self.favorite_table_update()
 
         except Exception as e:
@@ -608,7 +611,7 @@ class MainWindow(QMainWindow):
             if os.path.exists(file_path):
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
-                        favorites = json.load(f)
+                        favorites = json.load(f).get("items", {})
                 except (json.JSONDecodeError, FileNotFoundError):
                     favorites = {}
 
@@ -617,15 +620,16 @@ class MainWindow(QMainWindow):
                 self.append_to_console(f"Товара '{short_name}' нет в избранном")
                 return
 
-            # Добавляем новый элемент
+            # Удаляем элемент
             del favorites[short_name]
 
+            to_load = {"items": favorites}
             # Сохраняем в файл
             with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(favorites, f, ensure_ascii=False, indent=4)
+                json.dump(to_load, f, ensure_ascii=False, indent=4)
 
             self.append_to_console(f"Товар '{short_name}' удалён из избранного")
-            self.favortite_items_data = favorites
+            self.favorite_items_data = favorites
             self.favorite_table_update()
 
         except Exception as e:
@@ -773,7 +777,7 @@ class MainWindow(QMainWindow):
                 return
 
             with open(items_file, 'r', encoding='utf-8') as file:
-                loaded_data = json.load(file)
+                loaded_data = json.load(file).get("items", {})
 
             if isinstance(loaded_data, dict):
                 items_data.clear()
@@ -1176,7 +1180,7 @@ class MainWindow(QMainWindow):
 
         try:
             with open(top_file, 'r', encoding='utf-8') as file:
-                top = json.load(file)
+                top = json.load(file).get("items", {})
 
             if not top:
                 self.append_to_console("Нет данных для отображения в таблице", "yellow")
@@ -1186,15 +1190,15 @@ class MainWindow(QMainWindow):
             self.top_table.setRowCount(len(top))
 
             # Заполняем таблицу данными
-            for row, item in enumerate(top):
+            for row, (shortname, item_data) in enumerate(top.items()):
                 # Колонка 1: Название предмета
-                name_item = QTableWidgetItem(item.get("shortName", ""))
-                name_item.setToolTip(item.get("name", ""))  # Всплывающая подсказка
+                name_item = QTableWidgetItem(shortname)
+                name_item.setToolTip(item_data.get("name", ""))  # Всплывающая подсказка
                 name_item.setTextAlignment(Qt.AlignCenter)
                 self.top_table.setItem(row, 0, name_item)
 
                 # Колонка 2: Цена за единицу
-                price = item.get("avg24hPrice", 0)
+                price = item_data.get("avg24hPrice", 0)
                 price_item = QTableWidgetItem(f"{price:,}".replace(",", " "))
                 price_item.setTextAlignment(Qt.AlignCenter)
                 self.top_table.setItem(row, 1, price_item)
