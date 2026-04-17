@@ -99,7 +99,7 @@ def main():
         path = sys.argv[1]  # Путь к скриншоту
         n_output = int(sys.argv[2])
         print(f"Получен путь к скриншоту: {path}")
-        items_data = load_items_data('parse/tarkov_items.json')
+        items_data = load_items_data('parse/tarkov_items.json').get("items", {})
         items = detect_items(path, 'best.pt', items_data, 0.7)
         print(json.dumps(items[:n_output]))
     else:

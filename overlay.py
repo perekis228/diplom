@@ -135,7 +135,7 @@ class OverlayWindow(QWidget):
 
         # ========== ФОРМИРУЕМ ТЕКСТ ДЛЯ ОТОБРАЖЕНИЯ ==========
         # Создаем текст в зависимости от наличия цены
-        if price and price > 0:
+        if price and price >= 0:
             # Форматируем цену: добавляем пробелы между тысячами
             formatted_price = f"{price:,}".replace(",", " ")
             text = f"{formatted_price}₽"
