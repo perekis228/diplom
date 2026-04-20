@@ -180,6 +180,13 @@ class MainWindow(QMainWindow):
         self.init_ui()  # Вызываем метод инициализации интерфейса
         self.center()  # Вызываем метод центрирования окна на экране
         self.init_hotkey_handler()  # Инициализируем обработчик горячих клавиш
+        flag_path = os.path.join(os.getcwd(), "overlay_exit.flag")
+
+        if os.path.exists(flag_path):
+            try:
+                os.remove(flag_path)
+            except:
+                pass
 
     def init_hotkey_handler(self):
         """Инициализирует обработчик горячих клавиш"""
@@ -795,31 +802,21 @@ class MainWindow(QMainWindow):
             items_data.clear()
 
     def on_hotkey_activated(self):
-        """Обработчик активации горячей клавиши Shift+L (вызывается в основном потоке GUI)"""
+        """Обработчик активации горячей клавиши Shift+L"""
         self.append_to_console("Горячая клавиша Shift+L нажата", "cyan")
+
         if self.is_on:
+            # Если оверлей запущен - останавливаем
             if self.overlay_process and self.overlay_process.state() == QProcess.Running:
+                self.append_to_console("Оверлей запущен, останавливаю...", "orange")
                 self.stop_overlay()
             else:
+                # Иначе запускаем детекцию
+                self.append_to_console("Запуск детекции...", "cyan")
                 self.take_screenshot_and_run()
         else:
-            self.append_to_console("Детектор выключен. Сначала включите детектор кнопкой 'ЗАПУЩЕН/ВЫКЛЮЧЕН'", "orange")
+            self.append_to_console("Детектор выключен. Сначала включите детектор", "orange")
 
-    def stop_overlay(self):
-        """Останавливает оверлей"""
-        if self.overlay_process and self.overlay_process.state() == QProcess.Running:
-            self.append_to_console("Остановка оверлея...", "orange")
-
-            self.overlay_process.terminate()
-            if self.overlay_process.waitForFinished(1000):
-                self.append_to_console("Оверлей успешно остановлен", "green")
-            else:
-                self.append_to_console("Оверлей не отвечает, принудительное завершение", "red")
-                self.overlay_process.kill()
-                self.overlay_process.waitForFinished(1000)
-
-            self.overlay_process = None
-            self.append_to_console("Оверлей остановлен", "yellow")
 
     def parse(self):
         """Запускает parser.py"""
@@ -1119,40 +1116,147 @@ class MainWindow(QMainWindow):
         self.move(window_geometry.topLeft())
 
     def closeEvent(self, event):
-        """Обработчик закрытия окна"""
-        # Отменяем регистрацию горячей клавиши при закрытии окна
+        """Закрытие главного окна"""
+        self.append_to_console("Закрытие приложения...", "orange")
+
+        # Останавливаем оверлей
+        if self.overlay_process:
+            self.force_stop_overlay()
+
+        # Останавливаем detection
+        if self.detection_process and self.detection_process.state() == QProcess.Running:
+            self.detection_process.terminate()
+            self.detection_process.waitForFinished(1000)
+
+        # Отменяем горячую клавишу
         if self.hotkey_handler:
             self.hotkey_handler.unregister_hotkey()
 
-        # Проверяем, запущен ли процесс
-        if self.detection_process and self.detection_process.state() == QProcess.Running:
-            self.append_to_console("Закрытие приложения, остановка detection.py...", "orange")
-            self.detection_process.terminate()  # Пытаемся вежливо завершить
-            self.detection_process.waitForFinished(3000)  # Ждем 3 секунды
-        if self.overlay_process and self.overlay_process.state() == QProcess.Running:
-            self.append_to_console("Закрытие приложения, остановка overlay.py...", "orange")
-            self.overlay_process.terminate()  # Пытаемся вежливо завершить
-            self.overlay_process.waitForFinished(3000)  # Ждем 3 секунды
-        event.accept()  # Принимаем событие закрытия (окно закроется)
+        event.accept()
 
     def process_detection_result(self, items):
         """Обрабатывает результат из detection.py и запускает оверлей"""
-        if items:
-            if self.overlay_process and self.overlay_process.state() == QProcess.Running:
-                self.stop_overlay()
 
-            # Запускаем оверлей, передавая данные через аргументы
-            items_json = json.dumps(items)
-
-            # Запускаем overlay.py как отдельный процесс
-            self.overlay_process = QProcess()
-            self.overlay_process.start(sys.executable, ["overlay.py", items_json])
-            # Добавляем обработчик завершения оверлея
-            self.overlay_process.finished.connect(self.overlay_finished)
-
-            self.append_to_console(f"Оверлей запущен с {len(items)} предметами", "green")
-        else:
+        if not items:
             self.append_to_console("Нет предметов для отображения", "yellow")
+            return
+
+        # Останавливаем старый процесс
+        if self.overlay_process is not None:
+            self.append_to_console("Обнаружен старый процесс оверлея, останавливаю...", "orange")
+            self.force_stop_overlay()
+            import time
+            time.sleep(0.3)
+            self.overlay_process = None
+
+        # Сохраняем данные
+        import os
+        temp_file = os.path.join(os.getcwd(), "temp_detection_result.json")
+
+        try:
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                json.dump(items, f)
+            self.append_to_console(f"Данные сохранены в {temp_file}", "green")
+        except Exception as e:
+            self.append_to_console(f"Ошибка сохранения файла: {e}", "red")
+            return
+
+        # Создаём новый процесс
+        self.overlay_process = QProcess(self)
+        self.overlay_process.readyReadStandardOutput.connect(self.handle_overlay_stdout)
+        self.overlay_process.readyReadStandardError.connect(self.handle_overlay_stderr)
+        self.overlay_process.finished.connect(self.overlay_finished)
+        self.overlay_process.errorOccurred.connect(self.overlay_error)
+
+        # Запускаем
+        self.overlay_process.start(sys.executable, ["overlay.py", temp_file])
+
+        if not self.overlay_process.waitForStarted(3000):
+            self.append_to_console("Ошибка: не удалось запустить overlay.py", "red")
+            self.overlay_process = None
+            return
+
+        pid = self.overlay_process.processId()
+        self.append_to_console(f"Оверлей запущен (PID: {pid})", "green")
+
+    def handle_overlay_stdout(self):
+        """Обработка вывода overlay.py (только важные сообщения)"""
+        if self.overlay_process:
+            data = self.overlay_process.readAllStandardOutput()
+            text = bytes(data).decode('utf-8', errors='replace').strip()
+            if text:
+                # Просто выводим в консоль GUI (без префикса [Overlay], он уже есть)
+                self.append_to_console(text, "cyan")
+
+    def handle_overlay_stderr(self):
+        """Обработка ошибок overlay.py"""
+        if self.overlay_process:
+            data = self.overlay_process.readAllStandardError()
+            text = bytes(data).decode('utf-8', errors='replace').strip()
+            if text:
+                self.append_to_console(f"[Overlay ERROR] {text}", "red")
+
+    def stop_overlay(self):
+        """Останавливает оверлей через файл-флаг"""
+
+        if not self.overlay_process:
+            self.append_to_console("Оверлей не запущен", "yellow")
+            return
+
+        pid = self.overlay_process.processId()
+        self.append_to_console(f"Остановка оверлея (PID: {pid})...", "orange")
+
+        # Создаём файл-флаг
+        flag_path = os.path.join(os.getcwd(), "overlay_exit.flag")
+        try:
+            with open(flag_path, 'w') as f:
+                f.write("exit")
+            self.append_to_console("Файл завершения создан", "cyan")
+        except Exception as e:
+            self.append_to_console(f"Ошибка создания файла-флага: {e}", "red")
+
+        # Ждём 2 секунды
+        if self.overlay_process.waitForFinished(2000):
+            self.append_to_console("Оверлей остановлен", "green")
+            self.overlay_process = None
+            return
+
+        # SIGTERM
+        self.append_to_console("Оверлей не ответил, отправляю SIGTERM...", "orange")
+        self.overlay_process.terminate()
+
+        if self.overlay_process.waitForFinished(2000):
+            self.append_to_console("Оверлей остановлен (SIGTERM)", "green")
+            self.overlay_process = None
+            return
+
+        # SIGKILL
+        self.force_stop_overlay()
+
+    def force_stop_overlay(self):
+        """Принудительная остановка"""
+        if not self.overlay_process:
+            return
+        pid = self.overlay_process.processId()
+        self.append_to_console(f"Принудительное завершение процесса {pid}", "red")
+        self.overlay_process.kill()
+        self.overlay_process.waitForFinished(1000)
+        self.overlay_process = None
+        # Удаляем флаг на всякий случай
+        flag_path = os.path.join(os.getcwd(), "overlay_exit.flag")
+        if os.path.exists(flag_path):
+            os.remove(flag_path)
+
+    def overlay_error(self, error):
+        error_messages = {
+            QProcess.FailedToStart: "Не удалось запустить процесс",
+            QProcess.Crashed: "Процесс упал",
+            QProcess.Timedout: "Таймаут процесса",
+            QProcess.ReadError: "Ошибка чтения",
+            QProcess.UnknownError: "Неизвестная ошибка"
+        }
+        error_msg = error_messages.get(error, f"Ошибка {error}")
+        self.append_to_console(f"Ошибка overlay.py: {error_msg}", "red")
 
     def overlay_finished(self, exit_code, exit_status):
         """Обработчик завершения оверлея"""

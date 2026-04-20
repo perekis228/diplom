@@ -1,66 +1,74 @@
 import os
-import sys  # Для работы с аргументами командной строки и системными функциями
+import sys
 import json
-import signal
-from PyQt5.QtWidgets import (QApplication,  # Главный класс приложения
-                             QWidget)  # Базовый виджет для контейнера
-from PyQt5.QtCore import (Qt,  # Константы
-                          QTimer,  # Для таймера автоскрытия
-                          QRectF,  # Прямоугольник с вещественными координатами
-                          QCoreApplication)  # Для работы с приложением
-from PyQt5.QtGui import (QPainter,  # Рисование
-                         QPen,  # Стиль линий
-                         QBrush,  # Заливка
-                         QColor,  # Цвета
-                         QFont,  # Шрифты
-                         QFontMetrics)  # Размеры текста
+from datetime import datetime
+from PyQt5.QtWidgets import QApplication, QWidget
+from PyQt5.QtCore import Qt, QTimer, QRectF
+from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QFontMetrics
+
+LOG_FILE = os.path.join(os.getcwd(), "tarkov_detector.log")
+
+
+def log_to_file(msg, level="INFO"):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    try:
+        with open(LOG_FILE, 'a', encoding='utf-8') as f:
+            f.write(f"[{timestamp}] [{level}] [OVERLAY] {msg}\n")
+    except:
+        pass
+
+
+def log_to_console(msg):
+    print(f"[Overlay] {msg}", flush=True)
+
+
+def log_both(msg, level="INFO"):
+    log_to_file(msg, level)
+    log_to_console(msg)
 
 
 class OverlayWindow(QWidget):
     """Класс прозрачного окна-оверлея для отображения рамок вокруг предметов"""
     def __init__(self):
-        """Конструктор класса. Инициализирует окно и настраивает его свойства."""
+        log_to_file("OverlayWindow.__init__ начат", "DEBUG")
         super().__init__()
-        self.items = []  # Список предметов для отрисовки (JSON)
-        self.is_running = True  # Флаг для контроля работы
-        self.init_ui()  # Вызываем метод инициализации интерфейса
+        self.items = []
+        self.init_ui()
+
+        self.exit_flag_timer = QTimer()
+        self.exit_flag_timer.timeout.connect(self.check_exit_flag)
+        self.exit_flag_timer.start(200)
+
+        log_to_file("OverlayWindow.__init__ завершён", "DEBUG")
+
+    def check_exit_flag(self):
+        flag_path = os.path.join(os.getcwd(), "overlay_exit.flag")
+        if os.path.exists(flag_path):
+            log_both("Обнаружен файл завершения, закрываю окно")
+            try:
+                os.remove(flag_path)
+            except Exception as e:
+                log_to_file(f"Ошибка удаления флага: {e}", "ERROR")
+            self.exit_flag_timer.stop()
+            self.close()
 
     def init_ui(self):
         """Настройка прозрачного окна поверх всех окон"""
-        # Устанавливаем флаги
         self.setWindowFlags(
-            Qt.WindowStaysOnTopHint |  # Окно всегда поверх всех окон
-            Qt.FramelessWindowHint |  # Убираем рамки и заголовок окна
-            Qt.Tool |  # Окно не отображается в панели задач Windows
-            Qt.WindowTransparentForInput  # Клики мыши проходят сквозь окно
+            Qt.WindowStaysOnTopHint |
+            Qt.FramelessWindowHint |
+            Qt.Tool |
+            Qt.WindowTransparentForInput
         )
-
-        # Делаем фон окна полностью прозрачным
         self.setAttribute(Qt.WA_TranslucentBackground)
-
-        # Получаем геометрию основного экрана
-        screen = QApplication.primaryScreen().geometry()
-        # Устанавливаем размер окна на весь экран
-        self.setGeometry(screen)
-
-        # Устанавливаем название окна
+        screen = QApplication.primaryScreen()
+        if screen:
+            geometry = screen.geometry()
+            self.setGeometry(geometry)
+            log_to_file(f"Геометрия: {geometry.width()}x{geometry.height()}", "DEBUG")
         self.setWindowTitle("Tarkov Item Overlay")
-
-        # Создаем таймер для проверки состояния (для graceful shutdown)
-        self.check_timer = QTimer()
-        self.check_timer.timeout.connect(self.check_running)
-        self.check_timer.start(100)  # Проверяем каждые 100 мс
-
-        # Показываем окно
         self.show()
-
-    def check_running(self):
-        """Проверяет флаг running и закрывает приложение если нужно"""
-        if not self.is_running:
-            print("Получен сигнал завершения, закрываем оверлей...")
-            self.check_timer.stop()
-            self.close()
-            QCoreApplication.quit()  # Выходим из приложения
+        log_to_file("init_ui завершён", "DEBUG")
 
     def update_items(self, items_data):
         """
@@ -70,14 +78,10 @@ class OverlayWindow(QWidget):
             items_data: список словарей с данными о предметах
                         Каждый словарь содержит: 'class', 'bbox', 'price'
         """
-        self.items = items_data
-        # Перерисовываем окно (вызывает метод paintEvent)
-        self.update()
-
-    def clear_items(self):
-        """Очищает все предметы и перерисовывает окно"""
-        self.items = []
-        self.update()
+        if items_data:
+            self.items = items_data
+            log_both(f"Загружено {len(items_data)} предметов")
+            self.update()
 
     def paintEvent(self, event):
         """
@@ -87,20 +91,18 @@ class OverlayWindow(QWidget):
         Аргументы:
             event: объект события (не используется в данном методе)
         """
-        # Если нет предметов для отрисовки - выходим
         if not self.items:
             return
-
-        # Создаем объект QPainter для рисования на окне
         painter = QPainter(self)
-        # Включаем сглаживание (края линий и текст будут более гладкими)
         painter.setRenderHint(QPainter.Antialiasing)
-
-        # Проходим по всем предметам и рисуем каждый
         for item in self.items:
-            self.draw_item(painter, item)
+            try:
+                self.draw_item(painter, item)
+            except Exception as e:
+                log_to_file(f"Ошибка отрисовки: {e}", "ERROR")
 
-    def draw_item(self, painter, item):
+    @staticmethod
+    def draw_item(painter, item):
         """
         Рисует один предмет: рамку и цену
 
@@ -108,159 +110,95 @@ class OverlayWindow(QWidget):
             painter: объект QPainter для рисования
             item: словарь с данными предмета (class, bbox, price)
         """
-        # Извлекаем данные из словаря предмета
-        class_name = item.get('class', 'Unknown')  # Название предмета
-        price = item.get('price', 0)
-        bbox = item.get('bbox', {})
+        try:
+            price = item.get('price', 0)
+            bbox = item.get('bbox', {})
 
-        # Извлекаем координаты из bbox
-        x1 = bbox.get('x1', 0)
-        y1 = bbox.get('y1', 0)
-        x2 = bbox.get('x2', 0)
-        y2 = bbox.get('y2', 0)
+            x1 = bbox.get('x1', 0)
+            y1 = bbox.get('y1', 0)
+            x2 = bbox.get('x2', 0)
+            y2 = bbox.get('y2', 0)
 
-        # Создаем прямоугольник QRectF(x, y, width, height)
-        rect = QRectF(x1, y1, x2 - x1, y2 - y1)
+            x1, x2 = min(x1, x2), max(x1, x2)
+            y1, y2 = min(y1, y2), max(y1, y2)
 
-        # ========== РИСУЕМ РАМКУ ВОКРУГ ПРЕДМЕТА ==========
-        color = QColor(255, 0, 0)
-
-        # Создаем перо
-        pen = QPen(color, 3, Qt.SolidLine)  # Цвет, толщина 3 пикселя, сплошная линия
-        painter.setPen(pen)  # Устанавливаем перо в painter
-        painter.setBrush(Qt.NoBrush)  # Отключаем заливку
-
-        # Рисуем прямоугольник
-        painter.drawRect(rect)
-
-        # ========== ФОРМИРУЕМ ТЕКСТ ДЛЯ ОТОБРАЖЕНИЯ ==========
-        # Создаем текст в зависимости от наличия цены
-        if price and price >= 0:
-            # Форматируем цену: добавляем пробелы между тысячами
-            formatted_price = f"{price:,}".replace(",", " ")
-            text = f"{formatted_price}₽"
-        else:
-            text = ""
-
-        # ========== НАСТРАИВАЕМ ШРИФТ И ИЗМЕРЯЕМ ТЕКСТ ==========
-        # Настраиваем шрифт для текста
-        font = QFont("Arial", 11, QFont.Bold)
-        painter.setFont(font)  # Устанавливаем шрифт в painter
-
-        # Измеряем размер текста (ширина и высота в пикселях)
-        font_metrics = QFontMetrics(font)
-        text_rect = font_metrics.boundingRect(text)  # Прямоугольник, содержащий текст
-
-        # ========== РАСЧЕТ ЦЕНТРИРОВАННОЙ ПОЗИЦИИ ТЕКСТА ==========
-        # Вычисляем ширину рамки
-        rect_width = x2 - x1
-
-        # Центрируем текст по горизонтали (по центру рамки)
-        text_x = x1 + (rect_width - text_rect.width()) / 2
-
-        # Определяем позицию по вертикали (над рамкой или внутри)
-        # По умолчанию - над рамкой
-        text_y = y1 - 8
-
-        # Проверяем, помещается ли текст над рамкой (не выходит за верх экрана)
-        if text_y - text_rect.height() < 0:
-            # Если не помещается, размещаем текст внутри рамки, по центру по вертикали
+            rect_width = x2 - x1
             rect_height = y2 - y1
-            text_y = y1 + (rect_height - text_rect.height()) / 2
 
-        # ========== РИСУЕМ ФОН ДЛЯ ТЕКСТА ==========
-        # Создаем прямоугольник для фона под текстом (центрированный)
-        bg_rect = QRectF(
-            text_x - 5,  # X: левее текста на 5 пикселей
-            text_y - text_rect.height() - 2,  # Y: выше текста на высоту шрифта
-            text_rect.width() + 10,  # Ширина: ширина текста + 10 пикселей
-            text_rect.height() + 4  # Высота: высота текста + 4 пикселя
-        )
+            if rect_width < 2 or rect_height < 2:
+                return
 
-        # Рисуем полупрозрачный черный фон для текста (чтобы текст был читаемым)
-        painter.setBrush(QBrush(QColor(0, 0, 0, 180)))
-        painter.setPen(Qt.NoPen)  # Убираем обводку у фона
-        painter.drawRoundedRect(bg_rect, 5, 5)  # Рисуем прямоугольник со скругленными углами (радиус 5)
+            rect = QRectF(x1, y1, rect_width, rect_height)
+            color = QColor(255, 0, 0)
+            pen = QPen(color, 3, Qt.SolidLine)
+            painter.setPen(pen)
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRect(rect)
 
-        # ========== РИСУЕМ ТЕКСТ ==========
-        # Устанавливаем цвет текста
-        painter.setPen(QPen(color))
-        # Рисуем текст в рассчитанных центрированных координатах
-        painter.drawText(int(text_x), int(text_y), text)
+            if price and price >= 0:
+                formatted_price = f"{int(price):,}".replace(",", " ")
+                text = f"{formatted_price}₽"
+                font = QFont("Arial", 11, QFont.Bold)
+                painter.setFont(font)
+                fm = QFontMetrics(font)
+                text_width = fm.horizontalAdvance(text)
+                ascent = fm.ascent()
+                descent = fm.descent()
+                text_x = x1 + (rect_width - text_width) / 2
+
+                if y1 >= ascent + descent + 8:
+                    text_y = y1 - 8
+                else:
+                    text_y = y1 + (rect_height + ascent - descent) / 2
+
+                padding_h = 5
+                padding_v = 2
+
+                bg_rect = QRectF(
+                    text_x - padding_h,
+                    text_y - ascent - padding_v,
+                    text_width + padding_h * 2,
+                    ascent + descent + padding_v * 2
+                )
+
+                painter.setBrush(QBrush(QColor(0, 0, 0, 180)))
+                painter.setPen(Qt.NoPen)
+                painter.drawRoundedRect(bg_rect, 5, 5)
+                painter.setPen(QPen(color))
+                painter.drawText(int(text_x), int(text_y), text)
+        except Exception as e:
+            log_to_file(f"Ошибка в draw_item: {e}", "ERROR")
 
     def closeEvent(self, event):
         """Обработчик события закрытия окна"""
-        print("Оверлей закрывается...")
-        self.is_running = False
-        self.check_timer.stop()
+        log_both("Оверлей закрывается")
+        self.exit_flag_timer.stop()
         event.accept()
-
-
-# Глобальная переменная для доступа к приложению
-overlay_app = None
-overlay_window = None
-
-
-def signal_handler(signum, frame):
-    """Обработчик системных сигналов"""
-    print(f"\nПолучен сигнал {signum}")
-
-    # Используем глобальные переменные
-    global overlay_window, overlay_app
-
-    # Находим экземпляр оверлея и завершаем его
-    if overlay_window:
-        print("signal_handler: устанавливаем is_running=False")
-        overlay_window.is_running = False
-
-        if overlay_app:
-            print("signal_handler: вызываем quit()")
-            overlay_app.quit()
-    else:
-        print("signal_handler: окно не найдено, просто выходим")
-        if overlay_app:
-            overlay_app.quit()
+        QApplication.quit()
 
 
 def main():
     """Главная функция запуска оверлейного окна"""
-    global overlay_app, overlay_window
 
-    overlay_app = QApplication(sys.argv)
-
-    # Регистрируем обработчики сигналов для корректного завершения
-    signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
-    signal.signal(signal.SIGTERM, signal_handler)  # terminate() из QProcess
-    overlay_window = OverlayWindow()
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    app = QApplication(sys.argv)
+    window = OverlayWindow()
 
     if len(sys.argv) > 1:
-        arg = sys.argv[1]
-        # Очищаем аргумент от возможных кавычек и пробелов
-        arg = arg.strip().strip('"').strip("'")
+        file_path = sys.argv[1]
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                items = json.load(f)
+            window.update_items(items)
+            log_to_file(f"Данные загружены из {file_path}", "DEBUG")
+        except Exception as e:
+            log_both(f"Ошибка загрузки данных: {e}")
 
-        # Проверяем, является ли аргумент файлом .json
-        if arg.endswith('.json') and os.path.exists(arg):
-            try:
-                with open(arg, 'r', encoding='utf-8') as f:
-                    items_data = json.load(f)
-                overlay_window.update_items(items_data)
-                print(f"Оверлей загрузил {len(items_data)} предметов из файла {arg}")
-            except Exception as e:
-                print(f"Ошибка чтения файла: {e}")
-        else:
-            # Пробуем распарсить как JSON строку
-            try:
-                items_data = json.loads(arg)
-                overlay_window.update_items(items_data)
-                print(f"Оверлей загрузил {len(items_data)} предметов из строки")
-            except json.JSONDecodeError as e:
-                print(f"Ошибка: не удалось распарсить JSON данные: {e}")
-    else:
-        print("Ожидание данных...")
-
-    sys.exit(overlay_app.exec_())
+    log_to_file("Запуск app.exec_()", "DEBUG")
+    exit_code = app.exec_()
+    log_both(f"Оверлей остановлен (код: {exit_code})")
+    sys.exit(exit_code)
 
 
-# Точка входа в программу
 if __name__ == "__main__":
     main()

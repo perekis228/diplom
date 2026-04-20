@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Правки из-за смены формата внутри json 2">
+    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Чистка кода в detection.py">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/detection.py" beforeDir="false" afterPath="$PROJECT_DIR$/detection.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/overlay.py" beforeDir="false" afterPath="$PROJECT_DIR$/overlay.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -22,6 +23,9 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 2
@@ -64,7 +68,7 @@
       <recent name="C:\PythonUniversity\diplom\CV2\dataset\val\images" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.detection">
+  <component name="RunManager">
     <configuration name="cv_reader" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="diplom" />
       <option name="ENV_FILES" value="" />
@@ -370,7 +374,15 @@
       <option name="project" value="LOCAL" />
       <updated>1776436587126</updated>
     </task>
-    <option name="localTasksCounter" value="28" />
+    <task id="LOCAL-00028" summary="Чистка кода в detection.py">
+      <option name="closed" value="true" />
+      <created>1776518150415</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1776518150416</updated>
+    </task>
+    <option name="localTasksCounter" value="29" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -385,7 +397,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Парсер переделан как класс, добавлена тестовая модель" />
     <MESSAGE value="В парсер добавлено Pate из-за кривых символов" />
     <MESSAGE value="Функция обнаружения предметов и вывода их в консоль по возрастанию цены" />
     <MESSAGE value="Начальный GUI" />
@@ -410,6 +421,7 @@
     <MESSAGE value="Очистка парсера + в json теперь есть дата обновления" />
     <MESSAGE value="Правки из-за смены формата внутри json" />
     <MESSAGE value="Правки из-за смены формата внутри json 2" />
-    <option name="LAST_COMMIT_MESSAGE" value="Правки из-за смены формата внутри json 2" />
+    <MESSAGE value="Чистка кода в detection.py" />
+    <option name="LAST_COMMIT_MESSAGE" value="Чистка кода в detection.py" />
   </component>
 </project>
