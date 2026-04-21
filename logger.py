@@ -1,6 +1,7 @@
 import os
 import sys
 from datetime import datetime
+import inspect
 
 LOG_FILE = os.path.join(os.getcwd(), "tarkov_detector.log")
 
@@ -8,6 +9,16 @@ LOG_FILE = os.path.join(os.getcwd(), "tarkov_detector.log")
 def _format_timestamp() -> str:
     """Возвращает timestamp в формате: YYYY-MM-DD HH:MM:SS.mmm"""
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+
+def _get_caller_filename() -> str:
+    """Возвращает имя файла, из которого была вызвана функция логирования"""
+    stack = inspect.stack()
+    for frame_info in stack[1:]:
+        filename = os.path.basename(frame_info.filename)
+        if filename != "logger.py":
+            return os.path.splitext(filename)[0].upper()
+    return "UNKNOWN"
 
 
 def log_to_file(msg: str, level: str = "INFO") -> None:
@@ -19,11 +30,12 @@ def log_to_file(msg: str, level: str = "INFO") -> None:
         level: уровень лога
     """
     timestamp = _format_timestamp()
+    tag = _get_caller_filename()
     try:
         with open(LOG_FILE, 'a', encoding='utf-8') as f:
-            f.write(f"[{timestamp}] [{level}] [OVERLAY] {msg}\n")
+            f.write(f"[{timestamp}] [{level}] [{tag}] {msg}\n")
     except OSError:
-        print(f"[{timestamp}] [{level}] [OVERLAY] {msg}", file=sys.stderr)
+        print(f"[{timestamp}] [{level}] [{tag}] {msg}", file=sys.stderr)
 
 
 def log_to_console(msg: str) -> None:
@@ -33,7 +45,8 @@ def log_to_console(msg: str) -> None:
     Args:
         msg: текст лога
     """
-    print(f"[Overlay] {msg}", flush=True)
+    tag = _get_caller_filename()
+    print(f"[{tag}] {msg}", flush=True)
 
 
 def log_both(msg: str, level: str = "INFO"):
