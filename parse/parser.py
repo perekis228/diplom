@@ -1,6 +1,5 @@
 import json
 import sys
-import traceback
 from pathlib import Path
 from datetime import datetime, timedelta
 import urllib3
@@ -9,6 +8,8 @@ from typing import Any, Dict, List, Optional
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+from logger import log_both, log_to_file, log_to_console
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -52,6 +53,7 @@ class Parser:
         self.user_agent = USER_AGENT
         self.cache_max_age_hours = cache_max_age_hours
         self.query = self._load_query()
+        log_to_file(f"Парсер инициализирован с query_file={query_file}, timeout={timeout}s", "DEBUG")
 
     def _load_query(self) -> str:
         """
@@ -62,23 +64,23 @@ class Parser:
         """
         try:
             if not self.query_file.exists():
-                print(f"Файл {self.query_file} не найден")
+                log_to_file(f"Query file не найден: {self.query_file}", "WARNING")
                 # Пробуем альтернативный путь
                 alt_file = PARSER_DIR / "query_long.txt"
                 if alt_file.exists():
-                    print(f"Использую {alt_file}")
+                    log_to_file(f"Использован альтернативный query file: {alt_file}", "INFO")
                     self.query_file = alt_file
                 else:
-                    print("Не найден ни один файл с запросом!")
+                    log_to_file("Ни один query file не найден!", "ERROR")
                     return ""
 
             with open(self.query_file, 'r', encoding='utf-8') as f:
                 query = f.read().strip()
-                print(f"Запрос загружен из {self.query_file}")
+                log_to_file(f"Query загружен из {self.query_file} ({len(query)} знаков)", "DEBUG")
                 return query
 
         except Exception as e:
-            print(f"Ошибка при загрузке запроса: {e}")
+            log_to_file(f"Ошибка загрузки query file: {e}", "ERROR")
             return ""
 
     def is_cache_expired(self, filename: str) -> bool:
@@ -94,6 +96,7 @@ class Parser:
         file_path = PARSER_DIR / filename
 
         if not file_path.exists():
+            log_to_file(f"Файл кэша {filename} не найден", "DEBUG")
             return True
 
         try:
@@ -104,6 +107,7 @@ class Parser:
             timestamp = metadata.get('timestamp', 0)
 
             if timestamp == 0:
+                log_to_file(f"Нет timestamp в кэше {filename}", "WARNING")
                 return True
 
             last_updated = datetime.fromtimestamp(timestamp)
@@ -114,14 +118,14 @@ class Parser:
             time_to_update = max_age - age
 
             if needs_update:
-                print(f"Кэш устарел (возраст: {age})")
+                log_both(f"Кэш устарел (возраст: {age})")
             else:
-                print(f"Использую данные из кэша (возраст: {age})."
-                      f"До обновления {str(time_to_update).split('.')[0]}.")
+                log_both(f"Использую данные из кэша (возраст: {age})."
+                         f"До обновления {str(time_to_update).split('.')[0]}.")
             return needs_update
 
         except (json.JSONDecodeError, KeyError, ValueError) as e:
-            print(f"Ошибка чтения кэша: {e}")
+            log_to_file(f"Ошибка чтения кэша: {e}", "ERROR")
             return True
 
     @staticmethod
@@ -154,11 +158,11 @@ class Parser:
                     'avg24hPrice': item_data['price']
                 })
 
-            print(f"Загружено предметов из кэша: {len(items_list)}")
+            log_to_file(f"Загружено предметов из кэша: {len(items_list)}", "DEBUG")
             return items_list
 
         except (json.JSONDecodeError, KeyError, ValueError) as e:
-            print(f"Ошибка чтения кэша: {e}")
+            log_to_file(f"Ошибка чтения кэша: {e}", "ERROR")
             return []
 
     @staticmethod
@@ -173,6 +177,7 @@ class Parser:
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)
         session.mount("https://", adapter)
+        log_to_file("HTTP сессия создана с попытками", "DEBUG")
         return session
 
     @staticmethod
@@ -190,25 +195,24 @@ class Parser:
         try:
             data = response.json()
         except json.JSONDecodeError:
-            print(f"Сервер вернул не JSON: {response.text[:200]}")
+            log_to_file(f"Сервер вернул не JSON: {response.text[:200]}", "ERROR")
             return None
 
         if 'errors' in data:
-            print(f"GraphQL ошибка: {data['errors']}")
+            log_to_file(f"GraphQL ошибка: {data['errors']}", "ERROR")
             return None
 
         items = data.get('data', {}).get('items')
 
         if items is None:
-            print("Ответ не содержит поле 'data.items'")
-            print(f"Ключи ответа: {list(data.keys())}")
+            log_to_file(f"Ответ не содержит поле 'data.items'. Ключи ответа: {list(data.keys())}", "ERROR")
             return []
 
         if not isinstance(items, list):
-            print(f"Ожидался список, получен {type(items)}")
+            log_to_file(f"Ожидался список, получен {type(items)}", "ERROR")
             return []
 
-        print(f"Получено предметов: {len(items)}")
+        log_to_file(f"Получено предметов: {len(items)} из ответа API", "DEBUG")
         return items
 
     def parse(self) -> Optional[List[Dict[str, Any]]]:
@@ -219,7 +223,7 @@ class Parser:
             Список предметов или None в случае ошибки.
         """
         if not self.query:
-            print("Нет запроса для отправки")
+            log_both("Нет запроса к API для отправки", "ERROR")
             return None
 
         headers = {
@@ -230,7 +234,7 @@ class Parser:
 
         payload = {'query': self.query}
 
-        print(f"Отправка запроса к {self.base_url}...")
+        log_both(f"Отправка запроса к {self.base_url}...")
 
         # Проверка доступности API
         try:
@@ -238,9 +242,9 @@ class Parser:
                 "https://api.tarkov.dev",
                 timeout=self.timeout
             )
-            print(f"API доступен. Статус: {test_response.status_code}")
+            log_to_file(f"API доступен. Статус: {test_response.status_code}", "DEBUG")
         except Exception as e:
-            print(f"API недоступен: {e}")
+            log_to_file(f"API недоступен: {e}", "WARNING")
 
         # Основной запрос c SSL
         try:
@@ -253,19 +257,21 @@ class Parser:
                     verify=True  # Проверяем SSL сертификат
                 )
 
-            print(f"Ответ получен. Статус: {response.status_code}")
+            log_to_file(f"Ответ получен. Статус: {response.status_code}")
 
             if response.status_code != 200:
-                print(f"Ошибка HTTP: {response.status_code}")
-                # Ограничиваем вывод тела ошибки
-                print(f"   {response.text[:200]}")
+                log_to_file(f"Ошибка HTTP: {response.status_code}: {response.text[:200]}", "ERROR")
+                log_to_console(f"Ошибка HTTP: {response.status_code}")
                 return None
 
-            return self._extract_items_from_response(response)
+            items = self._extract_items_from_response(response)
+            if items:
+                log_to_console(f"Получено {len(items)} предметов")
+            return items
 
         except requests.exceptions.SSLError as e:
-            print(f"SSL ошибка: {e}")
-            print("Пробуем без проверки SSL...")
+            log_to_file(f"SSL ошибка: {e}. Пробуем без проверки SSL...", "WARNING")
+            log_to_console(f"SSL ошибка. Пробуем без проверки SSL...")
             try:
                 # Отключаем предупреждения безопасности только для этой отчаянной попытки
                 response = requests.post(
@@ -275,21 +281,28 @@ class Parser:
                     timeout=self.timeout,
                     verify=False
                 )
-                print(f"Статус (без SSL проверки): {response.status_code}")
-                return self._extract_items_from_response(response)
+                log_to_file(f"Статус (без SSL проверки): {response.status_code}")
+                items = self._extract_items_from_response(response)
+                if items:
+                    log_to_console(f"Получено {len(items)} предметов")
+                return items
+
             except Exception as e2:
-                print(f"Ошибка при повторной попытке: {e2}")
+                log_to_file(f"Ошибка при повторной попытке: {e2}", "ERROR")
+                log_to_console("Не удалось подключиться к серверу")
                 return None
 
         except requests.exceptions.Timeout:
-            print(f"Таймаут ({self.timeout} сек) при запросе к API")
+            log_to_file(f"Таймаут ({self.timeout} сек) при запросе к API", "ERROR")
+            log_to_console("Ошибка при подключении к серверу")
             return None
         except requests.exceptions.ConnectionError as e:
-            print(f"Ошибка подключения: {e}")
+            log_to_file(f"Ошибка подключения: {e}", "ERROR")
+            log_to_console("Ошибка при подключении к серверу")
             return None
         except Exception as e:
-            print(f"Неизвестная ошибка: {type(e).__name__}: {e}")
-            traceback.print_exc()
+            log_to_file(f"Неизвестная ошибка: {type(e).__name__}: {e}")
+            log_to_console("Ошибка при подключении к серверу")
             return None
 
     @staticmethod
@@ -305,6 +318,7 @@ class Parser:
             filename: Имя выходного файла
         """
         mapping = {}
+        duplicate_count = 0
 
         for item in items:
             short_name = item.get('shortName')
@@ -327,6 +341,10 @@ class Parser:
                 'price': price,
             }
 
+            if short_name in mapping:
+                duplicate_count += 1
+                log_to_file(f"Duplicate item: {short_name} ({name})", "DEBUG")
+
         result = {
             '_metadata': {
                 'timestamp': datetime.now().timestamp()
@@ -338,8 +356,9 @@ class Parser:
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
-        print(f"Данные сохранены в {file_path}")
-        print(f"Всего предметов: {len(mapping)}")
+        log_to_file(f"Сохранено {len(mapping)} предметов в {file_path} "
+                    f"(дубликатов: {duplicate_count})", "INFO")
+        log_to_console(f"Сохранено {len(mapping)} предметов")
 
     @staticmethod
     def to_json_top(
@@ -382,6 +401,8 @@ class Parser:
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
+        log_both(f"Топ-{len(top)} предметов сохранен в {top_file}")
+
     def run(
         self,
         output_file: str = DEFAULT_OUTPUT_FILE,
@@ -396,10 +417,9 @@ class Parser:
             count: Количество сохраняемых предметов в top_file.
             top_file: Имя выходного JSON файла с топом предметов.
         """
-        print("=" * 20, "Parser Tarkov.dev", "=" * 20)
-        print(f"Рабочая директория: {Path.cwd()}")
-        print(f"Директория парсера: {PARSER_DIR}")
-        print(f"Файл запроса: {self.query_file}")
+        log_to_file(f"Рабочая директория: {Path.cwd()}", "DEBUG")
+        log_to_file(f"Директория парсера: {PARSER_DIR}", "DEBUG")
+        log_to_file(f"Файл запроса: {self.query_file}", "DEBUG")
 
         if self.is_cache_expired(output_file):
             items = self.parse()
@@ -409,40 +429,46 @@ class Parser:
         if items:
             self.to_json(items, output_file)
             self.to_json_top(items, count, top_file)
-            print("Парсинг успешно завершен!")
+            log_both("Парсинг успешно завершен!")
             return True
         else:
-            print("Не удалось получить данные")
+            log_to_file("Не удалось получить данные - нет предметов", "ERROR")
+            log_to_console("Не удалось получить данные")
             return False
 
 
 def main() -> None:
     """Точка входа для скрипта."""
+    log_both("=" * 20 + "Parser Tarkov.dev" + "=" * 20)
     try:
         if len(sys.argv) > 1:
             try:
                 top_count = int(sys.argv[1])
                 if not 1 <= top_count <= 20:
                     raise ValueError(f"Количество должно быть от 1 до 20, получено {top_count}")
+                log_to_file(f"Топ из agrs: {top_count}", "DEBUG")
             except ValueError as e:
-                print(f"Предупреждение: {e}. Использую {DEFAULT_TOP_COUNT}")
+                log_to_file(f"Предупреждение: {e}. Использую {DEFAULT_TOP_COUNT}", "WARNING")
+                log_to_console(f"Предупреждение. Использую {DEFAULT_TOP_COUNT}")
                 top_count = DEFAULT_TOP_COUNT
         else:
             top_count = DEFAULT_TOP_COUNT
-            print(
+            log_to_file(
                 f"Количество предметов не указано."
-                f"Используется значение по умолчанию: {top_count}"
+                f"Используется значение по умолчанию: {top_count}",
+                "DEBUG"
             )
-
-        print(f"Запуск парсера для {top_count} предметов...")
 
         parser = Parser(query_file="query_short.txt", timeout=DEFAULT_TIMEOUT)
         success = parser.run(DEFAULT_OUTPUT_FILE, top_count, DEFAULT_TOP_FILE)
-        sys.exit(0 if success else 1)
+
+        success = 0 if success else 1
+        log_to_file(f"Парсер закончил работу с кодом: {success}")
+        sys.exit(success)
 
     except Exception as e:
-        print(f"Критическая ошибка: {e}")
-        traceback.print_exc()
+        log_to_file(f"Критическая ошибка: {e}", "ERROR")
+        log_to_console("Критическая ошибка!")
         sys.exit(1)
 
 
