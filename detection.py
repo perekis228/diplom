@@ -2,7 +2,10 @@ from ultralytics import YOLO
 import os
 import sys
 import json
+import traceback
 from typing import Dict, Any
+
+from logger import log_both, log_to_file, log_to_console
 
 DEFAULT_JSON_PATH = 'parse/tarkov_items.json'
 DEFAULT_MODEL_PATH = 'best.pt'
@@ -21,8 +24,11 @@ def load_items_data(json_path: str = DEFAULT_JSON_PATH) -> Dict[str, Dict[str, A
         словарь {shortName: {name, price}}
     """
 
+    log_to_file(f"Загрузка предметов из {json_path}", "DEBUG")
+
     if not os.path.exists(json_path):
-        print(f"Файл {json_path} не найден! Цены не будут загружены", file=sys.stderr)
+        log_to_file(f"Файл с ценами {json_path} не найден", "WARNING")
+        log_to_console("⚠ Предупреждение: файл с ценами не найден")
         return {}
 
     try:
@@ -34,13 +40,15 @@ def load_items_data(json_path: str = DEFAULT_JSON_PATH) -> Dict[str, Dict[str, A
         else:
             items = data
 
-        print(f"Загружено данных о {len(items)} предметах", file=sys.stderr)
+        log_both(f"Загружено данных о {len(items)} предметах")
         return items
     except json.JSONDecodeError as e:
-        print(f"Ошибка парсинга JSON: {e}", file=sys.stderr)
+        log_to_file(f"Ошибка парсинга JSON: {e}", "ERROR")
+        log_to_console("Ошибка: файл с ценами поврежден")
         return {}
     except Exception as e:
-        print(f"Ошибка загрузки: {e}", file=sys.stderr)
+        log_to_file(f"Ошибка загрузки: {e}", "ERROR")
+        log_to_console(f"Ошибка загрузки цен")
         return {}
 
 
@@ -63,40 +71,54 @@ def detect_items(
         list: список найденных предметов с координатами и ценами
     """
 
+    log_to_file(f"Старт детекции: image={image_path}, model={model_path}, conf={conf_threshold}", "INFO")
+
+    if items_data is None:
+        items_data = {}
+        log_to_file("Данные о предметах не найдены, цены не будут доступны", "WARNING")
+
     if not os.path.exists(image_path):
-        print(f"Файл {image_path} не найден!", file=sys.stderr)
+        log_both(f"Файл {image_path} не найден!", "ERROR")
         return []
 
     if not os.path.exists(model_path):
-        print(f"Модель {model_path} не найдена!", file=sys.stderr)
+        log_both(f"Модель {model_path} не найдена!", "ERROR")
         return []
 
-    print(f"Загрузка модели: {model_path}", file=sys.stderr)
+    log_to_file(f"Загрузка модели: {model_path}")
     try:
         model = YOLO(model_path)
+        log_to_file(f"Модель загружена ({len(model.names)} классов)")
     except Exception as e:
-        print(f"Ошибка загрузки модели: {e}", file=sys.stderr)
+        log_to_file(f"Ошибка загрузки модели: {e}", "ERROR")
+        log_to_console(f"Ошибка загрузки модели")
         return []
 
     print(f"Анализ изображения: {image_path}", file=sys.stderr)
+    log_to_file(f"Анализ изображения {image_path} с уровнем уверенности {conf_threshold}", "INFO")
+    log_to_console("Анализ изображения...")
     results = model(image_path, conf=conf_threshold, verbose=False)
 
     detected_items = []
+    items_with_prices = 0
 
     r = results[0]
     if r.boxes is None:
-        print("Ничего не найдено", file=sys.stderr)
+        log_both("Анализ завершён, предметов не найдено", "WARNING")
         return detected_items
 
     boxes = r.boxes
-    print(f"Найдено предметов: {len(boxes)}", file=sys.stderr)
 
     for box in boxes:
         x1, y1, x2, y2 = box.xyxy[0].tolist()
+        confidence = float(box.conf[0])
         class_id = int(box.cls[0])
         class_name = model.names[class_id]
         item_info_from_api = items_data.get(class_name, {})
         price_value = int(raw_price) if (raw_price := item_info_from_api.get('price')) is not None else None
+
+        if price_value:
+            items_with_prices += 1
 
         item_info = {
             'class': class_name,
@@ -106,10 +128,14 @@ def detect_items(
                 'x2': int(x2),
                 'y2': int(y2)
             },
+            'confidence': round(confidence, 3),
             'price': price_value
         }
 
         detected_items.append(item_info)
+        log_to_file(f"  {class_name}: conf={confidence:.3f}, price={price_value}", "DEBUG")
+
+    log_both(f"Найдено объектов с ценой/всего объектов: {items_with_prices}/{len(detected_items)}", "INFO")
 
     detected_items.sort(key=lambda x: (x['price'] is None, x['price'] or float('inf')))
     return detected_items
@@ -123,8 +149,8 @@ def parse_args() -> tuple[str, int]:
         tuple: путь к скриншоту, количество выводимых предметов
     """
     if len(sys.argv) < 2:
-        print("Ошибка: путь к скриншоту не передан", file=sys.stderr)
-        print("Пример: python detection.py screenshot.png [количество]", file=sys.stderr)
+        log_both("Ошибка: путь к скриншоту не передан", "ERROR")
+        log_to_console("Пример: python detection.py screenshot.png [количество]")
         sys.exit(1)
 
     screenshot_path = sys.argv[1]
@@ -135,30 +161,49 @@ def parse_args() -> tuple[str, int]:
             parsed = int(sys.argv[2])
             if parsed > 0:
                 n_output = parsed
+                log_to_file(f"n_output установлен {n_output} из аргумента", "DEBUG")
             else:
-                print(f"Предупреждение: указано отрицательное или нулевое количество ({parsed}), "
-                      f"установлено значение по умолчанию: {DEFAULT_N_OUTPUT}", file=sys.stderr)
+                log_to_file(f"Предупреждение: указано отрицательное или нулевое количество ({parsed}), "
+                            f"установлено значение по умолчанию: {DEFAULT_N_OUTPUT}", "WARNING")
         except ValueError:
-            print(f"Предупреждение: '{sys.argv[2]}' не является числом, "
-                  f"установлено значение по умолчанию: {DEFAULT_N_OUTPUT}", file=sys.stderr)
+            log_to_file(f"Предупреждение: '{sys.argv[2]}' не является числом, "
+                        f"установлено значение по умолчанию: {DEFAULT_N_OUTPUT}", "WARNING")
 
-    print(f"Получен путь к скриншоту: {screenshot_path}", file=sys.stderr)
-    print(f"Будет возвращено предметов: {n_output}", file=sys.stderr)
+    log_to_file(f"Получен путь к скриншоту: {screenshot_path}")
+    log_to_file(f"Будет возвращено предметов: {n_output}")
 
     return screenshot_path, n_output
 
 
 def main():
-    screenshot_path, n_output = parse_args()
-    items_data = load_items_data()
-    items = detect_items(screenshot_path, DEFAULT_MODEL_PATH, items_data, DEFAULT_CONF_THRESHOLD)
+    """Точка входа для скрипта."""
+    log_both("=" * 20 + "Detector Tarkov.dev" + "=" * 20)
 
-    if items is None:
-        items = []
+    try:
+        screenshot_path, n_output = parse_args()
+        items_data = load_items_data()
+        items = detect_items(
+            screenshot_path,
+            DEFAULT_MODEL_PATH,
+            items_data,
+            DEFAULT_CONF_THRESHOLD
+        )
 
-    output = items[:n_output]
+        if items is None:
+            items = []
 
-    print(json.dumps(output))
+        output = items[:n_output]
+
+        print(json.dumps(output, ensure_ascii=False))
+        log_to_file(f"Вывод {len(output)} предметов (задано: {n_output})")
+
+    except KeyboardInterrupt:
+        log_both("Скрипт прерван пользователем", "WARNING")
+        sys.exit(1)
+    except Exception as e:
+        log_to_file(f"Критическая ошибка: {e}\n{traceback.format_exc()}", "ERROR")
+        log_to_console(f"Критическая ошибка")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

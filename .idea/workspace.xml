@@ -4,10 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="overlay.py теперь нормально закрывается благодаря файлу-флагу. Добавлено логгирование в overlay.py">
-      <change afterPath="$PROJECT_DIR$/logger.py" afterDir="false" />
+    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Логгирование parser.py">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/overlay.py" beforeDir="false" afterPath="$PROJECT_DIR$/overlay.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/detection.py" beforeDir="false" afterPath="$PROJECT_DIR$/detection.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,27 +35,27 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.check.executor": "Run",
-    "Python.cv_reader.executor": "Run",
-    "Python.detection.executor": "Run",
-    "Python.detection_pyqt.executor": "Run",
-    "Python.gui.executor": "Run",
-    "Python.main.executor": "Run",
-    "Python.overlay.executor": "Run",
-    "Python.parser.executor": "Run",
-    "Python.run.executor": "Run",
-    "Python.test.executor": "Run",
-    "Python.test_dll.executor": "Run",
-    "Python.train.executor": "Run",
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "master",
-    "last_opened_file_path": "C:/PythonUniversity/diplom",
-    "settings.editor.selected.configurable": "configurable.group.language"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.check.executor&quot;: &quot;Run&quot;,
+    &quot;Python.cv_reader.executor&quot;: &quot;Run&quot;,
+    &quot;Python.detection.executor&quot;: &quot;Run&quot;,
+    &quot;Python.detection_pyqt.executor&quot;: &quot;Run&quot;,
+    &quot;Python.gui.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;Python.overlay.executor&quot;: &quot;Run&quot;,
+    &quot;Python.parser.executor&quot;: &quot;Run&quot;,
+    &quot;Python.run.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_dll.executor&quot;: &quot;Run&quot;,
+    &quot;Python.train.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/PythonUniversity/diplom&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;configurable.group.language&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\PythonUniversity\diplom" />
@@ -69,7 +68,7 @@
       <recent name="C:\PythonUniversity\diplom\CV2\dataset\val\images" />
     </key>
   </component>
-  <component name="RunManager">
+  <component name="RunManager" selected="Python.detection">
     <configuration name="cv_reader" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="diplom" />
       <option name="ENV_FILES" value="" />
@@ -391,7 +390,31 @@
       <option name="project" value="LOCAL" />
       <updated>1776688462236</updated>
     </task>
-    <option name="localTasksCounter" value="30" />
+    <task id="LOCAL-00030" summary="Чистка overlay.py; функции логгирования вынесены в logger.py">
+      <option name="closed" value="true" />
+      <created>1776695981062</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1776695981062</updated>
+    </task>
+    <task id="LOCAL-00031" summary="logger.py теперь использует название исполняющего файла">
+      <option name="closed" value="true" />
+      <created>1776782101683</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
+      <option name="project" value="LOCAL" />
+      <updated>1776782101683</updated>
+    </task>
+    <task id="LOCAL-00032" summary="Логгирование parser.py">
+      <option name="closed" value="true" />
+      <created>1776782116306</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
+      <option name="project" value="LOCAL" />
+      <updated>1776782116306</updated>
+    </task>
+    <option name="localTasksCounter" value="33" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -406,9 +429,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Функция обнаружения предметов и вывода их в консоль по возрастанию цены" />
-    <MESSAGE value="Начальный GUI" />
-    <MESSAGE value="Кнопка в GUI для запуска detection.py" />
     <MESSAGE value="Удалил не нужное" />
     <MESSAGE value="В GUI добавлены консоль, кнопки запуска detection.py и очистки консоли" />
     <MESSAGE value="По кнопке делается скриншот и понему запускается detection.py" />
@@ -431,6 +451,9 @@
     <MESSAGE value="Правки из-за смены формата внутри json 2" />
     <MESSAGE value="Чистка кода в detection.py" />
     <MESSAGE value="overlay.py теперь нормально закрывается благодаря файлу-флагу. Добавлено логгирование в overlay.py" />
-    <option name="LAST_COMMIT_MESSAGE" value="overlay.py теперь нормально закрывается благодаря файлу-флагу. Добавлено логгирование в overlay.py" />
+    <MESSAGE value="Чистка overlay.py; функции логгирования вынесены в logger.py" />
+    <MESSAGE value="logger.py теперь использует название исполняющего файла" />
+    <MESSAGE value="Логгирование parser.py" />
+    <option name="LAST_COMMIT_MESSAGE" value="Логгирование parser.py" />
   </component>
 </project>
