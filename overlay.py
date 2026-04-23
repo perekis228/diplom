@@ -31,6 +31,7 @@ class OverlayWindow(QWidget):
     def _check_exit_flag(self) -> None:
         """Проверяет наличие флага выхода из файла и закрывает окно, если он есть."""
         flag_path = os.path.join(os.getcwd(), "overlay_exit.flag")
+        temp_detection_path = os.path.join(os.getcwd(), "temp_detection_result.json")
         if os.path.exists(flag_path):
             self._exit_flag_timer.stop()
             log_both("Обнаружен файл завершения, закрываю окно")
@@ -38,6 +39,12 @@ class OverlayWindow(QWidget):
                 os.remove(flag_path)
             except OSError as e:
                 log_to_file(f"Ошибка удаления флага: {e}", "ERROR")
+
+            if os.path.exists(temp_detection_path):
+                try:
+                    os.remove(temp_detection_path)
+                except OSError as e:
+                    log_to_file(f"Ошибка удаления temp файла: {e}", "ERROR")
             self.close()
 
     def _init_ui(self):

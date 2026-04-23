@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Логгирование parser.py">
+    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Логгирование detection.py">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/detection.py" beforeDir="false" afterPath="$PROJECT_DIR$/detection.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/overlay.py" beforeDir="false" afterPath="$PROJECT_DIR$/overlay.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -68,7 +69,7 @@
       <recent name="C:\PythonUniversity\diplom\CV2\dataset\val\images" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.detection">
+  <component name="RunManager">
     <configuration name="cv_reader" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="diplom" />
       <option name="ENV_FILES" value="" />
@@ -414,7 +415,15 @@
       <option name="project" value="LOCAL" />
       <updated>1776782116306</updated>
     </task>
-    <option name="localTasksCounter" value="33" />
+    <task id="LOCAL-00033" summary="Логгирование detection.py">
+      <option name="closed" value="true" />
+      <created>1776863578619</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1776863578619</updated>
+    </task>
+    <option name="localTasksCounter" value="34" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -429,7 +438,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Удалил не нужное" />
     <MESSAGE value="В GUI добавлены консоль, кнопки запуска detection.py и очистки консоли" />
     <MESSAGE value="По кнопке делается скриншот и понему запускается detection.py" />
     <MESSAGE value="Скриншот теперь делается ещё и по сочетанию клавиш Shift+L" />
@@ -454,6 +462,7 @@
     <MESSAGE value="Чистка overlay.py; функции логгирования вынесены в logger.py" />
     <MESSAGE value="logger.py теперь использует название исполняющего файла" />
     <MESSAGE value="Логгирование parser.py" />
-    <option name="LAST_COMMIT_MESSAGE" value="Логгирование parser.py" />
+    <MESSAGE value="Логгирование detection.py" />
+    <option name="LAST_COMMIT_MESSAGE" value="Логгирование detection.py" />
   </component>
 </project>

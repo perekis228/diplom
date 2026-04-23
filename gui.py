@@ -1,4 +1,7 @@
 import sys
+import os
+import ctypes
+import html
 from PyQt5.QtWidgets import (QApplication,  # Главный класс приложения
                              QMainWindow,  # Класс главного окна
                              QWidget,  # Базовый виджет для контейнера
@@ -14,7 +17,8 @@ from PyQt5.QtWidgets import (QApplication,  # Главный класс прил
                              QLineEdit,  # Окно ввода текста
                              QMenu,  # Всплывающее окно
                              QAction,  # Действие для всплывающего окна
-                             QAbstractButton)  # База для switch
+                             QAbstractButton,
+                             QMessageBox)
 from PyQt5.QtCore import (Qt,  # Константы
                           QProcess,  # Для запуска внешних программ
                           QObject,  # Для сигналов
@@ -29,7 +33,6 @@ from PyQt5.QtGui import (QFont,  # Шрифты
                          QColor,  # Цвета
                          QBrush,  # Заливка
                          QPen)  # Стиль линий
-import os
 import keyboard  # Для глобальных горячих клавиш (работает даже когда окно неактивно)
 import json
 import traceback
@@ -40,6 +43,7 @@ from functools import partial
 class HotkeyHandler(QObject):
     # Создаем сигнал, который будет испускаться при нажатии горячей клавиши
     hotkey_pressed = pyqtSignal()
+    hotkey_error = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -48,11 +52,24 @@ class HotkeyHandler(QObject):
     def register_hotkey(self):
         """Регистрирует глобальную горячую клавишу"""
         try:
+            # Проверяем права администратора в Windows
+            if os.name == 'nt' and not self._is_admin():
+                self.hotkey_error.emit(
+                    "Для работы глобальной горячей клавиши требуются права администратора.\n"
+                    "Перезапустите приложение от имени администратора или используйте кнопку в интерфейсе."
+                )
+                return False
+
             # Регистрируем горячую клавишу
             self.hotkey_global = keyboard.add_hotkey('shift+l', self._on_hotkey)
+            self.is_registered = True
             return True
+
+        except ImportError:
+            self.hotkey_error.emit("Библиотека keyboard не установлена")
+            return False
         except Exception as e:
-            print(f"Ошибка регистрации горячей клавиши: {e}")
+            self.hotkey_error.emit(f"Ошибка регистрации горячей клавиши: {str(e)}")
             return False
 
     def _on_hotkey(self):
@@ -69,10 +86,18 @@ class HotkeyHandler(QObject):
             except Exception as e:
                 print(f"Ошибка отключения горячей клавиши: {e}")
 
+    @staticmethod
+    def _is_admin():
+        """Проверяет, запущено ли приложение с правами администратора"""
+        try:
+            return ctypes.windll.shell32.IsUserAnAdmin()
+        except:
+            return False
+
 
 class Switch(QAbstractButton):
     # Сигнал должен быть определен как атрибут класса ДО __init__
-    toggled = pyqtSignal(bool)
+    switchToggled = pyqtSignal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -93,7 +118,7 @@ class Switch(QAbstractButton):
         if self._checked != checked:
             self._checked = checked
             self.start_animation()
-            self.toggled.emit(checked)  # Теперь сигнал существует
+            self.switchToggled.emit(checked)  # Теперь сигнал существует
 
     def nextCheckState(self):
         self.setChecked(not self._checked)
@@ -169,7 +194,7 @@ class MainWindow(QMainWindow):
         self.parse_process = None  # Переменная для хранения объекта процесса parser.py
         self.screenshot_path = None  # Путь к последнему сделанному скриншоту
         self.hotkey_handler = None  # Обработчик горячих клавиш
-        self.top_table = None  # Хранение предметов для ТОП таблицы
+        # self.top_table = None  # Хранение предметов для ТОП таблицы
         self.all_items_data = {}  # Хранение всех предметов
         self.favorite_items_data = {}  # Хранение избранного
         self.search_timer = QTimer()  # Задержка поиска предметов
@@ -193,6 +218,7 @@ class MainWindow(QMainWindow):
         self.hotkey_handler = HotkeyHandler()
         # Подключаем сигнал из потока keyboard к слоту в основном потоке GUI
         self.hotkey_handler.hotkey_pressed.connect(self.on_hotkey_activated)
+        self.hotkey_handler.hotkey_error.connect(self.on_hotkey_error)
 
     def init_ui(self):
         """Метод для создания пользовательского интерфейса"""
@@ -231,7 +257,7 @@ class MainWindow(QMainWindow):
         self.switch = Switch()
 
         # Подключаем сигнал изменения состояния
-        self.switch.toggled.connect(self.on_switch_toggled)
+        self.switch.switchToggled.connect(self.on_switch_toggled)
         top_layout.addWidget(self.switch, alignment=Qt.AlignCenter)
 
         # Создаем горизонтальный layout для группы кнопок управления
@@ -413,7 +439,9 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(third_layout, 25)
 
         # Загружаем данные всех предметов
-        self.load_items_data("parse/tarkov_items.json", self.all_items_data)
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(base_dir, "parse", "tarkov_items.json")
+        self.load_items_data(file_path, self.all_items_data)
 
         # ========== ЧЕТВЁРТАЯ КОЛОНКА (ПОИСК ПРЕДМЕТОВ) ==========
         forth_layout = QVBoxLayout()
@@ -466,11 +494,47 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(forth_layout, 25)
 
         # Загружаем данные избранных предметов
-        self.load_items_data("favorite.json", self.favorite_items_data)
+        file_path = os.path.join(base_dir, "favorite.json")
+        self.load_items_data(file_path, self.favorite_items_data)
         self.favorite_table_update()
 
         # Устанавливаем начальное состояние кнопки-переключателя
         self.update_ui()
+
+    def on_hotkey_error(self, error_message):
+        """Обработчик ошибок горячей клавиши"""
+        self.append_to_console(f"❌ {error_message}", "red")
+
+        # Показываем диалог с предложением перезапуска от администратора
+        if "администратора" in error_message:
+            reply = QMessageBox.question(
+                self,
+                "Требуются права администратора",
+                "Для работы глобальной горячей клавиши (Shift+L) требуются права администратора.\n\n"
+                "Хотите перезапустить приложение с правами администратора?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes
+            )
+
+            if reply == QMessageBox.Yes:
+                self.restart_as_admin()
+
+    def restart_as_admin(self):
+        """Перезапускает приложение с правами администратора"""
+        try:
+            if os.name == 'nt':
+                # Запускаем текущий скрипт с правами администратора
+                ctypes.windll.shell32.ShellExecuteW(
+                    None,
+                    "runas",
+                    sys.executable,
+                    " ".join(sys.argv),
+                    None,
+                    1
+                )
+                QApplication.quit()
+        except Exception as e:
+            self.append_to_console(f"Не удалось перезапустить с правами администратора: {e}", "red")
 
     def on_switch_toggled(self, checked):
         """Срабатывает при изменении состояния"""
@@ -614,29 +678,17 @@ class MainWindow(QMainWindow):
 
             file_path = "favorite.json"
 
-            favorites = {}
-            if os.path.exists(file_path):
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        favorites = json.load(f).get("items", {})
-                except (json.JSONDecodeError, FileNotFoundError):
-                    favorites = {}
-
-            # Проверяем, есть ли уже такой товар в избранном
-            if short_name not in favorites:
+            if short_name not in self.favorite_items_data:
                 self.append_to_console(f"Товара '{short_name}' нет в избранном")
                 return
+            del self.favorite_items_data[short_name]
 
-            # Удаляем элемент
-            del favorites[short_name]
-
-            to_load = {"items": favorites}
+            to_load = {"items": self.favorite_items_data}
             # Сохраняем в файл
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(to_load, f, ensure_ascii=False, indent=4)
 
             self.append_to_console(f"Товар '{short_name}' удалён из избранного")
-            self.favorite_items_data = favorites
             self.favorite_table_update()
 
         except Exception as e:
@@ -645,7 +697,8 @@ class MainWindow(QMainWindow):
     def perform_search(self, text):
         """Выполняет поиск с текущим текстом"""
         self.current_search_text = text
-        if not self.current_search_text or len(self.current_search_text) < 2:
+
+        if not self.current_search_text or len(text) < 2:
             self.search_table.setRowCount(0)
             self.search_results_label.setText("Найдено предметов: 0")
             return
@@ -799,7 +852,6 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"Ошибка при загрузке данных: {e}")
             traceback.print_exc()
-            items_data.clear()
 
     def on_hotkey_activated(self):
         """Обработчик активации горячей клавиши Shift+L"""
@@ -877,6 +929,20 @@ class MainWindow(QMainWindow):
         self.append_to_console(f"Ошибка процесса parser.py: {error_msg}", "red")
         self.parse_button.setEnabled(True)
 
+    def process_error_detection(self, error):
+        """Обработчик ошибок процесса"""
+        error_messages = {
+            QProcess.FailedToStart: "Не удалось запустить процесс",
+            QProcess.Crashed: "Процесс упал",
+            QProcess.Timedout: "Таймаут процесса",
+            QProcess.WriteError: "Ошибка записи",
+            QProcess.ReadError: "Ошибка чтения",
+            QProcess.UnknownError: "Неизвестная ошибка"
+        }
+        error_msg = error_messages.get(error, f"Ошибка {error}")
+        self.append_to_console(f"Ошибка процесса detection.py: {error_msg}", "red")
+        self.parse_button.setEnabled(True)
+
     def process_started_parse(self):
         """Обработчик запуска процесса"""
         self.append_to_console("parser.py успешно запущен!", "green")
@@ -930,9 +996,17 @@ class MainWindow(QMainWindow):
                 self.append_to_console("Процесс уже запущен!", "orange")
                 return
 
+            if self.detection_process:
+                self.detection_process.deleteLater()
+
             # Проверяем, существует ли файл скриншота
             if not self.screenshot_path or not os.path.exists(self.screenshot_path):
                 self.append_to_console(f"Ошибка: файл скриншота не найден: {self.screenshot_path}", "red")
+                return
+
+            detection_script = os.path.join(os.path.dirname(__file__), "detection.py")
+            if not os.path.exists(detection_script):
+                self.append_to_console("Файл detection.py не найден", "red")
                 return
 
             # Создаем новый объект QProcess (управляет внешним процессом)
@@ -949,6 +1023,7 @@ class MainWindow(QMainWindow):
             self.detection_process.finished.connect(self.process_finished_detection)
             # Сигнал started - когда процесс успешно запустился
             self.detection_process.started.connect(self.process_started_detection)
+            self.detection_process.errorOccurred.connect(self.process_error_detection)
 
             # Запускаем detection.py и передаем путь к скриншоту и количество предметов как аргументы командной строки
             # sys.executable - путь к текущему интерпретатору Python
@@ -970,7 +1045,7 @@ class MainWindow(QMainWindow):
         """Добавляет текст в консоль с опциональным цветом"""
         if color:
             # Формируем HTML-строку с цветом текста
-            colored_text = f'<font color="{color}">{text}</font>'
+            colored_text = f'<font color="{color}">{html.escape(text)}</font>'
             self.console.append(colored_text)
         else:
             self.console.append(text)
@@ -1047,6 +1122,16 @@ class MainWindow(QMainWindow):
             self.append_to_console(f"detection.py был аварийно завершен", "red")
 
         self.run_button.setEnabled(True)  # Разблокируем кнопку запуска
+
+        # Удаляем скриншот после обработки
+        if self.screenshot_path and os.path.exists(self.screenshot_path):
+            try:
+                os.remove(self.screenshot_path)
+                self.append_to_console(f"Скриншот {self.screenshot_path} удалён", "gray")
+            except Exception as e:
+                self.append_to_console(f"Ошибка удаления скриншота: {e}", "orange")
+            finally:
+                self.screenshot_path = None
 
     def update_ui(self):
         """Единый метод для обновления интерфейса"""
@@ -1132,6 +1217,20 @@ class MainWindow(QMainWindow):
         if self.hotkey_handler:
             self.hotkey_handler.unregister_hotkey()
 
+        temp_files = [
+            "screenshot.png",
+            "temp_detection_result.json",
+            "overlay_exit.flag"
+        ]
+
+        for filename in temp_files:
+            filepath = os.path.join(os.getcwd(), filename)
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except:
+                    pass
+
         event.accept()
 
     def process_detection_result(self, items):
@@ -1146,11 +1245,16 @@ class MainWindow(QMainWindow):
             self.append_to_console("Обнаружен старый процесс оверлея, останавливаю...", "orange")
             self.force_stop_overlay()
             import time
-            time.sleep(0.3)
+            time.sleep(1.5)
             self.overlay_process = None
 
+        detection_script = os.path.join(os.path.dirname(__file__), "overlay.py")
+        if not os.path.exists(detection_script):
+            self.append_to_console("Файл overlay.py не найден", "red")
+            return
+
         # Сохраняем данные
-        import os
+
         temp_file = os.path.join(os.getcwd(), "temp_detection_result.json")
 
         try:
@@ -1273,10 +1377,11 @@ class MainWindow(QMainWindow):
             self.append_to_console("Ошибка: таблица не инициализирована", "red")
             return
 
-        top_file = os.path.join("parse", "top.json")
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        top_file = os.path.join(base_dir, "parse", "top.json")
         # Альтернативный путь, если первый не работает
         if not os.path.exists(top_file):
-            top_file = "top.json"
+            top_file = top_file = os.path.join(base_dir, "top.json")
 
         if not os.path.exists(top_file):
             self.append_to_console(f"Файл {top_file} не найден в {os.getcwd()}", "red")
