@@ -27,7 +27,8 @@ from PyQt5.QtCore import (Qt,  # Константы
                           QPropertyAnimation,  # Анимация свойств виджета (плавное изменение)
                           QEasingCurve,  # Кривые ускорения/замедления анимации
                           pyqtProperty,  # Декоратор для создания Qt-свойств (переводчик для с++)
-                          QRect)  # Прямоугольник
+                          QRect,
+                          QProcessEnvironment)
 from PyQt5.QtGui import (QFont,  # Шрифты
                          QPainter,  # Рисование
                          QColor,  # Цвета
@@ -530,7 +531,7 @@ class MainWindow(QMainWindow):
                     sys.executable,
                     " ".join(sys.argv),
                     None,
-                    1
+                    0
                 )
                 QApplication.quit()
         except Exception as e:
@@ -1013,6 +1014,11 @@ class MainWindow(QMainWindow):
             self.detection_process = QProcess()
             # Объединяем stdout (стандартный вывод) и stderr (ошибки) в один поток
             self.detection_process.setProcessChannelMode(QProcess.MergedChannels)
+
+            env = QProcessEnvironment.systemEnvironment()
+            env.insert("PYTHONIOENCODING", "utf-8")  # Принудительно UTF-8 для Python
+            env.insert("PYTHONUTF8", "1")  # PEP 540: UTF-8 режим в Python 3.7+
+            self.detection_process.setProcessEnvironment(env)
 
             # ========== ПОДКЛЮЧАЕМ СИГНАЛЫ ПРОЦЕССА ==========
             # Сигнал readyReadStandardOutput - когда есть данные в stdout

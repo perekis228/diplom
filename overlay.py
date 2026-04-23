@@ -9,6 +9,8 @@ from PyQt5.QtWidgets import QApplication, QWidget
 
 from logger import log_both, log_to_file
 
+sys.stdout.reconfigure(encoding='utf-8')
+
 
 class OverlayWindow(QWidget):
     """Класс прозрачного окна-оверлея для отображения рамок вокруг предметов."""

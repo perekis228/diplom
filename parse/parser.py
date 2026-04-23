@@ -11,6 +11,7 @@ from urllib3.util.retry import Retry
 
 from logger import log_both, log_to_file, log_to_console
 
+sys.stdout.reconfigure(encoding='utf-8')
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 PARSER_DIR = Path(__file__).parent

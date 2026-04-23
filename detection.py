@@ -7,6 +7,8 @@ from typing import Dict, Any
 
 from logger import log_both, log_to_file, log_to_console
 
+sys.stdout.reconfigure(encoding='utf-8')
+
 DEFAULT_JSON_PATH = 'parse/tarkov_items.json'
 DEFAULT_MODEL_PATH = 'best.pt'
 DEFAULT_CONF_THRESHOLD = 0.7
