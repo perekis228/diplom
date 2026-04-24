@@ -226,75 +226,105 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Детектор Tarkov")
         self.setGeometry(0, 0, 1800, 800)
 
-        # Создаем центральный виджет (обязательный элемент для QMainWindow)
+        # Создаем центральный виджет
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        # ========== ГЛАВНЫЙ ГОРИЗОНТАЛЬНЫЙ LAYOUT (три колонки) ==========
+        # Главный горизонтальный layout (три колонки)
         main_layout = QHBoxLayout(central_widget)
 
-        # ========== ПЕРВАЯ КОЛОНКА (кнопки + консоль) ==========
-        first_layout = QVBoxLayout()
+        # Создаём все колонки
+        main_layout.addLayout(self._create_first_column(), 30)  # Кнопки + консоль
+        main_layout.addLayout(self._create_second_column(), 35)  # Топ предметов
+        main_layout.addLayout(self._create_third_column(), 25)  # Поиск
+        main_layout.addLayout(self._create_fourth_column(), 25)  # Избранное
 
-        # ВЕРХНЯЯ ПАНЕЛЬ С КНОПКАМИ
-        top_layout = QVBoxLayout()
+        # Загружаем данные
+        self.load_items_data("parse/tarkov_items.json", self.all_items_data)
 
-        # Создаем заголовок
+        # Устанавливаем начальное состояние
+        self.update_ui()
+
+        self._del_log()
+
+    def _create_first_column(self):
+        """Создаёт первую колонку (кнопки + консоль)"""
+        layout = QVBoxLayout()
+
+        # Верхняя панель с кнопками
+        layout.addLayout(self._create_top_panel())
+
+        # Консоль вывода
+        layout.addWidget(QLabel("Консоль вывода:"))
+        layout.addWidget(self._create_console())
+
+        return layout
+
+    def _create_top_panel(self):
+        """Создаёт панель с заголовком и кнопками управления"""
+        layout = QVBoxLayout()
+
+        # Заголовок
         title = QLabel("Детектор предметов")
         title.setFont(QFont("Arial", 16, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
-        top_layout.addWidget(title)
-        top_layout.addSpacing(30)
+        layout.addWidget(title)
+        layout.addSpacing(30)
 
-        # Создаем кнопку-переключатель
-        self.toggle_button = QPushButton()
-        self.toggle_button.setFont(QFont("Arial", 14, QFont.Bold))
-        self.toggle_button.setFixedSize(200, 80)
-        self.toggle_button.clicked.connect(self.toggle_status)
-        top_layout.addWidget(self.toggle_button, alignment=Qt.AlignCenter)
-        top_layout.addSpacing(20)
+        # Кнопка-переключатель
+        self.toggle_button = self._create_toggle_button()
+        layout.addWidget(self.toggle_button, alignment=Qt.AlignCenter)
+        layout.addSpacing(20)
 
-        # Создаем switch
+        # Switch для выбора количества предметов
         self.switch = Switch()
+        self.switch.toggled.connect(self.on_switch_toggled)
+        layout.addWidget(self.switch, alignment=Qt.AlignCenter)
 
-        # Подключаем сигнал изменения состояния
-        self.switch.switchToggled.connect(self.on_switch_toggled)
-        top_layout.addWidget(self.switch, alignment=Qt.AlignCenter)
+        # Кнопки управления
+        layout.addWidget(self._create_run_button())
+        layout.addLayout(self._create_button_panel())
 
-        # Создаем горизонтальный layout для группы кнопок управления
-        button_layout = QHBoxLayout()
+        return layout
 
-        # Кнопка создания скриншота и запуска detection.py
-        self.run_button = QPushButton("Сделать скриншот и запустить detection.py (Shift+L)")
-        self.run_button.clicked.connect(self.take_screenshot_and_run)
-        top_layout.addWidget(self.run_button)
-        self.run_button.setEnabled(False)
+    def _create_toggle_button(self):
+        """Создаёт кнопку включения/выключения"""
+        button = QPushButton()
+        button.setFont(QFont("Arial", 14, QFont.Bold))
+        button.setFixedSize(200, 80)
+        button.clicked.connect(self.toggle_status)
+        return button
 
-        # Кнопка запуска parser.py
+    def _create_run_button(self):
+        """Создаёт кнопку запуска детекции"""
+        button = QPushButton("Сделать скриншот и запустить detection.py (Shift+L)")
+        button.clicked.connect(self.take_screenshot_and_run)
+        button.setEnabled(False)
+        self.run_button = button
+        return button
+
+    def _create_button_panel(self):
+        """Создаёт панель с дополнительными кнопками"""
+        layout = QHBoxLayout()
+
+        # Кнопка парсинга цен
         self.parse_button = QPushButton("Обновить цены")
         self.parse_button.clicked.connect(self.parse)
-        button_layout.addWidget(self.parse_button)
+        layout.addWidget(self.parse_button)
 
         # Кнопка очистки консоли
         self.clear_button = QPushButton("Очистить консоль")
         self.clear_button.clicked.connect(self.clear_console)
-        button_layout.addWidget(self.clear_button)
+        layout.addWidget(self.clear_button)
 
-        top_layout.addLayout(button_layout)
+        return layout
 
-        first_layout.addLayout(top_layout)
-
-        # ========== КОНСОЛЬ ДЛЯ ВЫВОДА ==========
-        console_label = QLabel("Консоль вывода:")
-        console_label.setFont(QFont("Arial", 10, QFont.Bold))
-        first_layout.addWidget(console_label)
-
-        # Создаем текстовое поле для консоли
-        self.console = QTextEdit()
-        self.console.setFont(QFont("Courier New", 10))
-        self.console.setReadOnly(True)
-
-        self.console.setStyleSheet("""
+    def _create_console(self):
+        """Создаёт текстовое поле для консоли"""
+        console = QTextEdit()
+        console.setFont(QFont("Courier New", 10))
+        console.setReadOnly(True)
+        console.setStyleSheet("""
             QTextEdit {
                 background-color: #1e1e1e;
                 color: #d4d4d4;
@@ -302,84 +332,74 @@ class MainWindow(QMainWindow):
                 border-radius: 5px;
             }
         """)
-        first_layout.addWidget(self.console)
+        self.console = console
+        return console
 
-        # Добавляем колонку в главный layout (занимает 25% ширины)
-        main_layout.addLayout(first_layout, 30)
+    def _create_second_column(self):
+        """Создаёт вторую колонку (ТОП предметов)"""
+        layout = QVBoxLayout()
 
-        # ========== ВТОРАЯ КОЛОНКА (ТОП ПРЕДМЕТОВ) ==========
-        second_layout = QVBoxLayout()
+        layout.addWidget(QLabel("Топ предметов:"))
+        layout.addLayout(self._create_top_controls())
+        layout.addSpacing(10)
+        layout.addWidget(self._create_top_table())
 
-        table_label = QLabel("Топ предметов:")
-        table_label.setFont(QFont("Arial", 10, QFont.Bold))
-        second_layout.addWidget(table_label)
+        return layout
 
-        # Создаем спинбокс для выбора числа от 1 до 20
+    def _create_top_controls(self):
+        """Создаёт элементы управления для ТОП таблицы"""
+        layout = QHBoxLayout()
+
+        layout.addWidget(QLabel("Количество выводимых предметов (1-20):"))
+
         self.number_spinbox = QSpinBox()
-        self.number_spinbox.setRange(1, 20)  # Диапазон [1, 20]
-        self.number_spinbox.setValue(10)  # Начальное значение
-        self.number_spinbox.setSingleStep(1)  # Шаг изменения
+        self.number_spinbox.setRange(1, 20)
+        self.number_spinbox.setValue(10)
+        self.number_spinbox.setSingleStep(1)
         self.number_spinbox.setFixedWidth(80)
+        layout.addWidget(self.number_spinbox)
 
-        # Создаем горизонтальный layout для поля и кнопки
-        custom_layout = QHBoxLayout()
-        custom_layout.addWidget(QLabel("Количество выводимых предметов (1-20):"))
-        custom_layout.addWidget(self.number_spinbox)
-        custom_layout.addStretch()
-        second_layout.addLayout(custom_layout)
-        second_layout.addSpacing(10)
+        layout.addStretch()
+        return layout
 
-        # Создаем таблицу для топа
-        self.top_table = QTableWidget()
-        self.top_table.setFont(QFont("Arial", 10))
-        self.top_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.top_table.setColumnCount(2)
-        self.top_table.setHorizontalHeaderLabels(["Предмет", "Цена"])
+    def _create_top_table(self):
+        """Создаёт таблицу для ТОП предметов"""
+        table = QTableWidget()
+        table.setFont(QFont("Arial", 10))
+        table.setEditTriggers(QTableWidget.NoEditTriggers)
+        table.setColumnCount(2)
+        table.setHorizontalHeaderLabels(["Предмет", "Цена"])
+        table.setStyleSheet(self._get_table_style())
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        table.setAlternatingRowColors(True)
 
-        # Настройка внешнего вида таблицы
-        self.top_table.setStyleSheet("""
-            QTableWidget {
-                background-color: #2d2d2d;
-                alternate-background-color: #3c3c3c;
-                gridline-color: #555555;
-                color: #d4d4d4;
-            }
-            QTableWidget::item {
-                padding: 5px;
-            }
-            QHeaderView::section {
-                background-color: #1e1e1e;
-                color: #ffffff;
-                padding: 8px;
-                border: 1px solid #3c3c3c;
-                font-weight: bold;
-            }
-        """)
+        self.top_table = table
+        return table
 
-        # Растягиваем колонки
-        self.top_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.top_table.setAlternatingRowColors(True)
+    def _create_third_column(self):
+        """Создаёт третью колонку (поиск предметов)"""
+        layout = QVBoxLayout()
 
-        second_layout.addWidget(self.top_table)
+        layout.addWidget(QLabel("Поиск предметов:"))
+        layout.addWidget(self._create_search_input())
+        layout.addSpacing(10)
 
-        # Добавляем колонку в главный layout (занимает 25% ширины)
-        main_layout.addLayout(second_layout, 35)
+        self.search_results_label = QLabel("Найдено предметов: 0")
+        self.search_results_label.setFont(QFont("Arial", 9))
+        layout.addWidget(self.search_results_label)
+        layout.addSpacing(5)
 
-        # ========== ТРЕТЬЯ КОЛОНКА (ПОИСК ПРЕДМЕТОВ) ==========
-        third_layout = QVBoxLayout()
+        layout.addWidget(self._create_search_table())
 
-        search_label = QLabel("Поиск предметов:")
-        search_label.setFont(QFont("Arial", 10, QFont.Bold))
-        third_layout.addWidget(search_label)
+        return layout
 
-        # Создаем поле поиска
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Введите название предмета...")
-        self.search_input.setFont(QFont("Arial", 10))
-        self.search_input.textChanged.connect(self.perform_search)  # Подключаем сигнал изменения текста
-
-        # Стиль для поля ввода
-        self.search_input.setStyleSheet("""
+    def _create_search_input(self):
+        """Создаёт поле ввода для поиска"""
+        input_field = QLineEdit()
+        input_field.setPlaceholderText("Введите название предмета...")
+        input_field.setFont(QFont("Arial", 10))
+        input_field.textChanged.connect(self.perform_search)
+        input_field.setStyleSheet("""
             QLineEdit {
                 background-color: #2d2d2d;
                 color: #d4d4d4;
@@ -392,82 +412,64 @@ class MainWindow(QMainWindow):
             }
         """)
 
-        third_layout.addWidget(self.search_input)
-        third_layout.addSpacing(10)
+        self.search_input = input_field
+        return input_field
 
-        # Метка с количеством найденных предметов
-        self.search_results_label = QLabel("Найдено предметов: 0")
-        self.search_results_label.setFont(QFont("Arial", 9))
-        third_layout.addWidget(self.search_results_label)
-        third_layout.addSpacing(5)
+    def _create_search_table(self):
+        """Создаёт таблицу для результатов поиска"""
+        table = QTableWidget()
+        table.setFont(QFont("Arial", 10))
+        table.setEditTriggers(QTableWidget.NoEditTriggers)
+        table.setColumnCount(3)
+        table.setHorizontalHeaderLabels(["ShortName", "Name", "Price"])
+        table.setContextMenuPolicy(Qt.CustomContextMenu)
+        table.customContextMenuRequested.connect(self.show_context_menu)
+        table.setStyleSheet(self._get_table_style())
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        table.setAlternatingRowColors(True)
 
-        # Создаем таблицу для результатов поиска
-        self.search_table = QTableWidget()
-        self.search_table.setFont(QFont("Arial", 10))
-        self.search_table.setEditTriggers(QTableWidget.NoEditTriggers)  # Только чтение
-        self.search_table.setColumnCount(3)
-        self.search_table.setHorizontalHeaderLabels(["ShortName", "Name", "Price"])
+        self.search_table = table
+        return table
 
-        # Включаем контекстное меню
-        self.search_table.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.search_table.customContextMenuRequested.connect(self.show_context_menu)
+    def _create_fourth_column(self):
+        """Создаёт четвёртую колонку (избранное)"""
+        layout = QVBoxLayout()
 
-        self.search_table.setStyleSheet("""
-            QTableWidget {
-                background-color: #2d2d2d;
-                alternate-background-color: #3c3c3c;
-                gridline-color: #555555;
-                color: #d4d4d4;
-            }
-            QTableWidget::item {
-                padding: 5px;
-            }
-            QHeaderView::section {
-                background-color: #1e1e1e;
-                color: #ffffff;
-                padding: 8px;
-                border: 1px solid #3c3c3c;
-                font-weight: bold;
-            }
-        """)
+        layout.addWidget(QLabel("Избранное:"))
 
-        self.search_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.search_table.setAlternatingRowColors(True)
-
-        third_layout.addWidget(self.search_table)
-
-        # Добавляем колонку в главный layout (занимает 25% ширины)
-        main_layout.addLayout(third_layout, 25)
-
-        # Загружаем данные всех предметов
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.join(base_dir, "parse", "tarkov_items.json")
-        self.load_items_data(file_path, self.all_items_data)
-
-        # ========== ЧЕТВЁРТАЯ КОЛОНКА (ПОИСК ПРЕДМЕТОВ) ==========
-        forth_layout = QVBoxLayout()
-
-        favorite_label = QLabel("Избранное:")
-        favorite_label.setFont(QFont("Arial", 10, QFont.Bold))
-        forth_layout.addWidget(favorite_label)
-
-        # Кнопка очистки избранного
+        # Кнопка очистки
         del_button = QPushButton("Очистить избранное")
         del_button.clicked.connect(self.clear_favorite)
-        forth_layout.addWidget(del_button)
+        layout.addWidget(del_button)
 
-        # Таблица для избранного
-        self.favorite_table = QTableWidget()
-        self.favorite_table.setFont(QFont("Arial", 10))
-        self.favorite_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.favorite_table.setColumnCount(3)
-        self.favorite_table.setHorizontalHeaderLabels(["ShortName", "Name", "Price"])
+        # Таблица избранного
+        layout.addWidget(self._create_favorite_table())
 
-        # Включаем контекстное меню
-        self.favorite_table.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.favorite_table.customContextMenuRequested.connect(self.show_context_menu)
+        # Загружаем данные
+        self.load_items_data("favorite.json", self.favorite_items_data)
+        self.favorite_table_update()
 
-        self.favorite_table.setStyleSheet("""
+        return layout
+
+    def _create_favorite_table(self):
+        """Создаёт таблицу для избранного"""
+        table = QTableWidget()
+        table.setFont(QFont("Arial", 10))
+        table.setEditTriggers(QTableWidget.NoEditTriggers)
+        table.setColumnCount(3)
+        table.setHorizontalHeaderLabels(["ShortName", "Name", "Price"])
+        table.setContextMenuPolicy(Qt.CustomContextMenu)
+        table.customContextMenuRequested.connect(self.show_context_menu)
+        table.setStyleSheet(self._get_table_style())
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        table.setAlternatingRowColors(True)
+
+        self.favorite_table = table
+        return table
+
+    def _get_table_style(self):
+        """Возвращает общий стиль для таблиц"""
+        return """
             QTableWidget {
                 background-color: #2d2d2d;
                 alternate-background-color: #3c3c3c;
@@ -484,23 +486,15 @@ class MainWindow(QMainWindow):
                 border: 1px solid #3c3c3c;
                 font-weight: bold;
             }
-        """)
+        """
 
-        self.favorite_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.favorite_table.setAlternatingRowColors(True)
-
-        forth_layout.addWidget(self.favorite_table)
-
-        # Добавляем колонку в главный layout (занимает 25% ширины)
-        main_layout.addLayout(forth_layout, 25)
-
-        # Загружаем данные избранных предметов
-        file_path = os.path.join(base_dir, "favorite.json")
-        self.load_items_data(file_path, self.favorite_items_data)
-        self.favorite_table_update()
-
-        # Устанавливаем начальное состояние кнопки-переключателя
-        self.update_ui()
+    def _del_log(self):
+        file_path = "tarkov_detector.log"
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                self.append_to_console(f"Ошибка удаления лога: {e}", "orange")
 
     def on_hotkey_error(self, error_message):
         """Обработчик ошибок горячей клавиши"""
@@ -870,7 +864,6 @@ class MainWindow(QMainWindow):
         else:
             self.append_to_console("Детектор выключен. Сначала включите детектор", "orange")
 
-
     def parse(self):
         """Запускает parser.py"""
         try:
@@ -880,7 +873,15 @@ class MainWindow(QMainWindow):
 
             self.parse_process = QProcess()
             # Устанавливаем рабочую директорию
-            self.parse_process.setWorkingDirectory(os.path.dirname(os.path.abspath(__file__)))
+            project_root = os.path.dirname(os.path.abspath(__file__))
+            self.parse_process.setWorkingDirectory(project_root)
+
+            # Настройка окружения
+            env = QProcessEnvironment.systemEnvironment()
+            env.insert("PYTHONPATH", project_root)  # Добавляем корень проекта
+            env.insert("PYTHONIOENCODING", "utf-8")
+            self.parse_process.setProcessEnvironment(env)
+
             # Объединяем stdout (стандартный вывод) и stderr (ошибки) в один поток
             self.parse_process.setProcessChannelMode(QProcess.MergedChannels)
 
