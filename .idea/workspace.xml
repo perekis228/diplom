@@ -4,9 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Исправлена ошибка, связанная с выводом кириллицы">
+    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Дробление init в gui.py">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/parse/parser.py" beforeDir="false" afterPath="$PROJECT_DIR$/parse/parser.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -35,28 +35,28 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.check.executor": "Run",
-    "Python.cv_reader.executor": "Run",
-    "Python.detection.executor": "Run",
-    "Python.detection_pyqt.executor": "Run",
-    "Python.gui.executor": "Run",
-    "Python.main.executor": "Run",
-    "Python.overlay.executor": "Run",
-    "Python.parser (1).executor": "Run",
-    "Python.parser.executor": "Run",
-    "Python.run.executor": "Run",
-    "Python.test.executor": "Run",
-    "Python.test_dll.executor": "Run",
-    "Python.train.executor": "Run",
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "master",
-    "last_opened_file_path": "C:/PythonUniversity/diplom",
-    "settings.editor.selected.configurable": "configurable.group.language"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.check.executor&quot;: &quot;Run&quot;,
+    &quot;Python.cv_reader.executor&quot;: &quot;Run&quot;,
+    &quot;Python.detection.executor&quot;: &quot;Run&quot;,
+    &quot;Python.detection_pyqt.executor&quot;: &quot;Run&quot;,
+    &quot;Python.gui.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;Python.overlay.executor&quot;: &quot;Run&quot;,
+    &quot;Python.parser (1).executor&quot;: &quot;Run&quot;,
+    &quot;Python.parser.executor&quot;: &quot;Run&quot;,
+    &quot;Python.run.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_dll.executor&quot;: &quot;Run&quot;,
+    &quot;Python.train.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/PythonUniversity/diplom&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;configurable.group.language&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\PythonUniversity\diplom" />
@@ -485,7 +485,15 @@
       <option name="project" value="LOCAL" />
       <updated>1776946365498</updated>
     </task>
-    <option name="localTasksCounter" value="36" />
+    <task id="LOCAL-00036" summary="Дробление init в gui.py">
+      <option name="closed" value="true" />
+      <created>1777039223688</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1777039223688</updated>
+    </task>
+    <option name="localTasksCounter" value="37" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -500,7 +508,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Скриншот теперь делается ещё и по сочетанию клавиш Shift+L" />
     <MESSAGE value=" overlay.py обрисовывает все предметы, которые получил и пишет цену над ними на 8 сек, detection.py теперь выводит 5 самых дешёвых предметов, gui.py запускает overlay.py" />
     <MESSAGE value=" overlay.py теперь закрывается при повторном нажатии shift+L" />
     <MESSAGE value="parser.py подключён к gui.py через кнопку" />
@@ -525,6 +532,7 @@
     <MESSAGE value="Логгирование detection.py" />
     <MESSAGE value="Чистка кода + приложение требует прав администратора, добавлена возможность перезапуска с правами" />
     <MESSAGE value="Исправлена ошибка, связанная с выводом кириллицы" />
-    <option name="LAST_COMMIT_MESSAGE" value="Исправлена ошибка, связанная с выводом кириллицы" />
+    <MESSAGE value="Дробление init в gui.py" />
+    <option name="LAST_COMMIT_MESSAGE" value="Дробление init в gui.py" />
   </component>
 </project>

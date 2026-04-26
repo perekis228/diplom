@@ -6,18 +6,17 @@ import urllib3
 from typing import Any, Dict, List, Optional
 
 import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 
 from logger import log_both, log_to_file, log_to_console
 
-sys.stdout.reconfigure(encoding='utf-8')
+sys.stdout.reconfigure(encoding='utf-8')  # type: ignore
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 PARSER_DIR = Path(__file__).parent
-DEFAULT_TIMEOUT = 10
+DEFAULT_TIMEOUT = 30
 DEFAULT_TOP_COUNT = 5
 DEFAULT_CACHE_AGE_HOURS = 1
+REQUEST_LIMIT = 1000
 API_BASE_URL = "https://api.tarkov.dev/graphql"
 USER_AGENT = "Mozilla/5.0 (Diploma Project)"
 DEFAULT_OUTPUT_FILE = "tarkov_items.json"
@@ -125,7 +124,7 @@ class Parser:
                          f"До обновления {str(time_to_update).split('.')[0]}.")
             return needs_update
 
-        except (json.JSONDecodeError, KeyError, ValueError) as e:
+        except Exception as e:
             log_to_file(f"Ошибка чтения кэша: {e}", "ERROR")
             return True
 
@@ -161,60 +160,67 @@ class Parser:
 
             log_to_file(f"Загружено предметов из кэша: {len(items_list)}", "DEBUG")
             return items_list
-
-        except (json.JSONDecodeError, KeyError, ValueError) as e:
+        except Exception as e:
             log_to_file(f"Ошибка чтения кэша: {e}", "ERROR")
             return []
 
-    @staticmethod
-    def _create_session() -> requests.Session:
-        """Создает сессию requests с настроенными повторными попытками."""
-        session = requests.Session()
-
-        retry_strategy = Retry(
-            total=3,
-            backoff_factor=1,
-            status_forcelist=[429, 500, 502, 503, 504],
-        )
-        adapter = HTTPAdapter(max_retries=retry_strategy)
-        session.mount("https://", adapter)
-        log_to_file("HTTP сессия создана с попытками", "DEBUG")
-        return session
-
-    @staticmethod
-    def _extract_items_from_response(response: requests.Response) -> Optional[List[Dict[str, Any]]]:
+    def _parse_paginated(self) -> Optional[List[Dict[str, Any]]]:
         """
-        Извлекает список предметов из ответа API.
-
-        Args:
-            response: Объект ответа requests
-
-        Returns:
-            Список предметов, пустой список если предметов нет,
-            или None в случае ошибки структуры ответа
+        Загружает предметы постранично с лимитом limit,
+        чтобы избежать таймаутов на большом ответе.
         """
-        try:
-            data = response.json()
-        except json.JSONDecodeError:
-            log_to_file(f"Сервер вернул не JSON: {response.text[:200]}", "ERROR")
-            return None
 
-        if 'errors' in data:
-            log_to_file(f"GraphQL ошибка: {data['errors']}", "ERROR")
-            return None
+        all_items = []
+        offset = 0
 
-        items = data.get('data', {}).get('items')
+        headers = {
+            'Content-Type': 'application/json',
+            'User-Agent': self.user_agent,
+        }
 
-        if items is None:
-            log_to_file(f"Ответ не содержит поле 'data.items'. Ключи ответа: {list(data.keys())}", "ERROR")
-            return []
+        while True:
+            paginated_query = (
+                "{"
+                f"  items(limit: {REQUEST_LIMIT}, offset: {offset}) {{"
+                "    name"
+                "    shortName"
+                "    avg24hPrice"
+                "  }"
+                "}"
+            )
+            payload = {'query': paginated_query}
+            log_to_file(f"Запрос страницы offset={offset}, limit={REQUEST_LIMIT}", "DEBUG")
 
-        if not isinstance(items, list):
-            log_to_file(f"Ожидался список, получен {type(items)}", "ERROR")
-            return []
+            try:
+                resp = requests.post(
+                    self.base_url,
+                    json=payload,
+                    headers=headers,
+                    timeout=self.timeout,
+                )
+                if resp.status_code != 200:
+                    log_to_file(f"Ошибка HTTP {resp.status_code}: {resp.text[:200]}", "ERROR")
+                    return None
 
-        log_to_file(f"Получено предметов: {len(items)} из ответа API", "DEBUG")
-        return items
+                data = resp.json()
+                if 'errors' in data:
+                    log_to_file(f"GraphQL ошибка: {data['errors']}", "ERROR")
+                    return None
+
+                items_chunk = data['data']['items']
+                if not items_chunk:
+                    break
+
+                all_items.extend(items_chunk)
+                offset += REQUEST_LIMIT
+                log_to_file(f"Получено +{len(items_chunk)} предметов (всего {len(all_items)})", "DEBUG")
+
+            except Exception as e:
+                log_to_file(f"Ошибка при получении страницы offset={offset}: {e}", "ERROR")
+                return None
+
+        log_both(f"Пагинация завершена: всего {len(all_items)} предметов")
+        return all_items
 
     def parse(self) -> Optional[List[Dict[str, Any]]]:
         """
@@ -227,84 +233,15 @@ class Parser:
             log_both("Нет запроса к API для отправки", "ERROR")
             return None
 
-        headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'User-Agent': self.user_agent
-        }
-
-        payload = {'query': self.query}
-
-        log_both(f"Отправка запроса к {self.base_url}...")
-
-        # Проверка доступности API
         try:
-            test_response = requests.get(
-                "https://api.tarkov.dev",
-                timeout=self.timeout
-            )
-            log_to_file(f"API доступен. Статус: {test_response.status_code}", "DEBUG")
-        except Exception as e:
-            log_to_file(f"API недоступен: {e}", "WARNING")
-
-        # Основной запрос c SSL
-        try:
-            with self._create_session() as session:
-                response = session.post(
-                    self.base_url,
-                    json=payload,
-                    headers=headers,
-                    timeout=self.timeout,
-                    verify=True  # Проверяем SSL сертификат
-                )
-
-            log_to_file(f"Ответ получен. Статус: {response.status_code}")
-
-            if response.status_code != 200:
-                log_to_file(f"Ошибка HTTP: {response.status_code}: {response.text[:200]}", "ERROR")
-                log_to_console(f"Ошибка HTTP: {response.status_code}")
-                return None
-
-            items = self._extract_items_from_response(response)
+            items = self._parse_paginated()
             if items:
-                log_to_console(f"Получено {len(items)} предметов")
-            return items
-
-        except requests.exceptions.SSLError as e:
-            log_to_file(f"SSL ошибка: {e}. Пробуем без проверки SSL...", "WARNING")
-            log_to_console(f"SSL ошибка. Пробуем без проверки SSL...")
-            try:
-                # Отключаем предупреждения безопасности только для этой отчаянной попытки
-                response = requests.post(
-                    self.base_url,
-                    json=payload,
-                    headers=headers,
-                    timeout=self.timeout,
-                    verify=False
-                )
-                log_to_file(f"Статус (без SSL проверки): {response.status_code}")
-                items = self._extract_items_from_response(response)
-                if items:
-                    log_to_console(f"Получено {len(items)} предметов")
+                log_both(f"Получено {len(items)} предметов (пагинация)")
                 return items
-
-            except Exception as e2:
-                log_to_file(f"Ошибка при повторной попытке: {e2}", "ERROR")
-                log_to_console("Не удалось подключиться к серверу")
-                return None
-
-        except requests.exceptions.Timeout:
-            log_to_file(f"Таймаут ({self.timeout} сек) при запросе к API", "ERROR")
-            log_to_console("Ошибка при подключении к серверу")
-            return None
-        except requests.exceptions.ConnectionError as e:
-            log_to_file(f"Ошибка подключения: {e}", "ERROR")
-            log_to_console("Ошибка при подключении к серверу")
-            return None
         except Exception as e:
-            log_to_file(f"Неизвестная ошибка: {type(e).__name__}: {e}")
-            log_to_console("Ошибка при подключении к серверу")
-            return None
+            log_to_file(f"Пагинация не удалась: {e}", "WARNING")
+
+        return None
 
     @staticmethod
     def to_json(
@@ -424,6 +361,9 @@ class Parser:
 
         if self.is_cache_expired(output_file):
             items = self.parse()
+            if items is None and (PARSER_DIR / output_file).exists():
+                log_both("Ошибка получения свежих данных, использую кэш")
+                items = self._read_json(output_file)
         else:
             items = self._read_json(output_file)
 
