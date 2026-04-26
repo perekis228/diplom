@@ -2,7 +2,6 @@ import json
 import sys
 from pathlib import Path
 from datetime import datetime, timedelta
-import urllib3
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -10,7 +9,6 @@ import requests
 from logger import log_both, log_to_file, log_to_console
 
 sys.stdout.reconfigure(encoding='utf-8')  # type: ignore
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 PARSER_DIR = Path(__file__).parent
 DEFAULT_TIMEOUT = 30
@@ -35,7 +33,6 @@ class Parser:
 
     def __init__(
         self,
-        query_file: str = "query_short.txt",
         timeout: int = DEFAULT_TIMEOUT,
         cache_max_age_hours: int = DEFAULT_CACHE_AGE_HOURS
     ) -> None:
@@ -43,45 +40,13 @@ class Parser:
         Инициализация парсера.
 
         Args:
-            query_file: Путь к файлу с GraphQL запросом
             timeout: Таймаут для HTTP запроса в секундах
             cache_max_age_hours: Максимальный возраст кэша в часах
         """
         self.base_url = API_BASE_URL
-        self.query_file = PARSER_DIR / query_file
         self.timeout = timeout
         self.user_agent = USER_AGENT
         self.cache_max_age_hours = cache_max_age_hours
-        self.query = self._load_query()
-        log_to_file(f"Парсер инициализирован с query_file={query_file}, timeout={timeout}s", "DEBUG")
-
-    def _load_query(self) -> str:
-        """
-        Загружает GraphQL запрос из файла
-
-        Returns:
-            Строка с GraphQL запросом. Пустая строка, если файл не найден.
-        """
-        try:
-            if not self.query_file.exists():
-                log_to_file(f"Query file не найден: {self.query_file}", "WARNING")
-                # Пробуем альтернативный путь
-                alt_file = PARSER_DIR / "query_long.txt"
-                if alt_file.exists():
-                    log_to_file(f"Использован альтернативный query file: {alt_file}", "INFO")
-                    self.query_file = alt_file
-                else:
-                    log_to_file("Ни один query file не найден!", "ERROR")
-                    return ""
-
-            with open(self.query_file, 'r', encoding='utf-8') as f:
-                query = f.read().strip()
-                log_to_file(f"Query загружен из {self.query_file} ({len(query)} знаков)", "DEBUG")
-                return query
-
-        except Exception as e:
-            log_to_file(f"Ошибка загрузки query file: {e}", "ERROR")
-            return ""
 
     def is_cache_expired(self, filename: str) -> bool:
         """
@@ -229,9 +194,6 @@ class Parser:
         Returns:
             Список предметов или None в случае ошибки.
         """
-        if not self.query:
-            log_both("Нет запроса к API для отправки", "ERROR")
-            return None
 
         try:
             items = self._parse_paginated()
@@ -357,7 +319,6 @@ class Parser:
         """
         log_to_file(f"Рабочая директория: {Path.cwd()}", "DEBUG")
         log_to_file(f"Директория парсера: {PARSER_DIR}", "DEBUG")
-        log_to_file(f"Файл запроса: {self.query_file}", "DEBUG")
 
         if self.is_cache_expired(output_file):
             items = self.parse()
@@ -400,7 +361,7 @@ def main() -> None:
                 "DEBUG"
             )
 
-        parser = Parser(query_file="query_short.txt", timeout=DEFAULT_TIMEOUT)
+        parser = Parser(timeout=DEFAULT_TIMEOUT)
         success = parser.run(DEFAULT_OUTPUT_FILE, top_count, DEFAULT_TOP_FILE)
 
         success = 0 if success else 1

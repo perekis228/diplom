@@ -1,7 +1,0 @@
-query {
-      items {
-        name
-        shortName
-        avg24hPrice
-        }
-      }
