@@ -39,6 +39,8 @@ import json
 import traceback
 from functools import partial
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
 
 # Создаем класс-посредник для обработки горячих клавиш в отдельном потоке
 class HotkeyHandler(QObject):
@@ -206,7 +208,7 @@ class MainWindow(QMainWindow):
         self.init_ui()  # Вызываем метод инициализации интерфейса
         self.center()  # Вызываем метод центрирования окна на экране
         self.init_hotkey_handler()  # Инициализируем обработчик горячих клавиш
-        flag_path = os.path.join(os.getcwd(), "overlay_exit.flag")
+        flag_path = os.path.join(PROJECT_ROOT, "temp", "overlay_exit.flag")
 
         if os.path.exists(flag_path):
             try:
@@ -240,7 +242,7 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(self._create_fourth_column(), 25)  # Избранное
 
         # Загружаем данные
-        self.load_items_data("parse/tarkov_items.json", self.all_items_data)
+        self.load_items_data("../data/tarkov_items.json", self.all_items_data)
 
         # Устанавливаем начальное состояние
         self.update_ui()
@@ -446,7 +448,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._create_favorite_table())
 
         # Загружаем данные
-        self.load_items_data("favorite.json", self.favorite_items_data)
+        self.load_items_data("../data/favorite.json", self.favorite_items_data)
         self.favorite_table_update()
 
         return layout
@@ -489,7 +491,7 @@ class MainWindow(QMainWindow):
         """
 
     def _del_log(self):
-        file_path = "tarkov_detector.log"
+        file_path = "../logs/tarkov_detector.log"
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)
@@ -543,7 +545,7 @@ class MainWindow(QMainWindow):
     def clear_favorite(self):
         try:
             self.favorite_items_data.clear()
-            file_path = "favorite.json"
+            file_path = "../data/favorite.json"
 
             to_load = {"items": self.favorite_items_data}
             if os.path.exists(file_path):
@@ -634,7 +636,7 @@ class MainWindow(QMainWindow):
             name = table.item(row, 1).text()
             price = table.item(row, 2).text()
 
-            file_path = "favorite.json"
+            file_path = "../data/favorite.json"
 
             favorites = {}
             if os.path.exists(file_path):
@@ -671,7 +673,7 @@ class MainWindow(QMainWindow):
         try:
             short_name = table.item(row, 0).text()
 
-            file_path = "favorite.json"
+            file_path = "../data/favorite.json"
 
             if short_name not in self.favorite_items_data:
                 self.append_to_console(f"Товара '{short_name}' нет в избранном")
@@ -902,11 +904,11 @@ class MainWindow(QMainWindow):
 
             # Запускаем parser.py
             # sys.executable - путь к текущему интерпретатору Python
-            parser_path = os.path.join("parse", "parser.py")
-            if not os.path.exists(parser_path):
-                self.append_to_console(f"Ошибка: файл {parser_path} не найден", "red")
+            filename = "parser.py"
+            if not os.path.exists(filename):
+                self.append_to_console(f"Ошибка: файл {filename} не найден", "red")
                 return
-            self.parse_process.start(sys.executable, [parser_path, str(num_of_items)])
+            self.parse_process.start(sys.executable, [filename, str(num_of_items)])
 
             # Ждем запуска процесса максимум 3 секунды
             if not self.parse_process.waitForStarted(3000):
@@ -972,7 +974,7 @@ class MainWindow(QMainWindow):
                 self.append_to_console("Ошибка: не удалось получить доступ к экрану", "red")
                 return
             filename = "screenshot.png"
-            self.screenshot_path = os.path.join(os.getcwd(), filename)  # Полный путь
+            self.screenshot_path = os.path.join(PROJECT_ROOT, "temp", filename)  # Полный путь
 
             # Делаем скриншот всего экрана
             screenshot = screen.grabWindow(0)  # 0 - идентификатор корневого окна (весь экран)
@@ -1006,7 +1008,7 @@ class MainWindow(QMainWindow):
                 self.append_to_console(f"Ошибка: файл скриншота не найден: {self.screenshot_path}", "red")
                 return
 
-            detection_script = os.path.join(os.path.dirname(__file__), "detection.py")
+            detection_script = os.path.join(BASE_DIR, "detection.py")
             if not os.path.exists(detection_script):
                 self.append_to_console("Файл detection.py не найден", "red")
                 return
@@ -1225,9 +1227,9 @@ class MainWindow(QMainWindow):
             self.hotkey_handler.unregister_hotkey()
 
         temp_files = [
-            "screenshot.png",
-            "temp_detection_result.json",
-            "overlay_exit.flag"
+            "../temp/screenshot.png",
+            "../temp/temp_detection_result.json",
+            "../temp/overlay_exit.flag"
         ]
 
         for filename in temp_files:
@@ -1262,7 +1264,7 @@ class MainWindow(QMainWindow):
 
         # Сохраняем данные
 
-        temp_file = os.path.join(os.getcwd(), "temp_detection_result.json")
+        temp_file = os.path.join(PROJECT_ROOT, "temp", "temp_detection_result.json")
 
         try:
             with open(temp_file, 'w', encoding='utf-8') as f:
@@ -1318,7 +1320,7 @@ class MainWindow(QMainWindow):
         self.append_to_console(f"Остановка оверлея (PID: {pid})...", "orange")
 
         # Создаём файл-флаг
-        flag_path = os.path.join(os.getcwd(), "overlay_exit.flag")
+        flag_path = os.path.join(PROJECT_ROOT, "temp", "overlay_exit.flag")
         try:
             with open(flag_path, 'w') as f:
                 f.write("exit")
@@ -1354,7 +1356,7 @@ class MainWindow(QMainWindow):
         self.overlay_process.waitForFinished(1000)
         self.overlay_process = None
         # Удаляем флаг на всякий случай
-        flag_path = os.path.join(os.getcwd(), "overlay_exit.flag")
+        flag_path = os.path.join(PROJECT_ROOT, "temp", "overlay_exit.flag")
         if os.path.exists(flag_path):
             os.remove(flag_path)
 
@@ -1384,11 +1386,7 @@ class MainWindow(QMainWindow):
             self.append_to_console("Ошибка: таблица не инициализирована", "red")
             return
 
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        top_file = os.path.join(base_dir, "parse", "top.json")
-        # Альтернативный путь, если первый не работает
-        if not os.path.exists(top_file):
-            top_file = top_file = os.path.join(base_dir, "top.json")
+        top_file = os.path.join(PROJECT_ROOT, "data", "top.json")
 
         if not os.path.exists(top_file):
             self.append_to_console(f"Файл {top_file} не найден в {os.getcwd()}", "red")

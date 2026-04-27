@@ -17,8 +17,8 @@ DEFAULT_CACHE_AGE_HOURS = 1
 REQUEST_LIMIT = 1000
 API_BASE_URL = "https://api.tarkov.dev/graphql"
 USER_AGENT = "Mozilla/5.0 (Diploma Project)"
-DEFAULT_OUTPUT_FILE = "tarkov_items.json"
-DEFAULT_TOP_FILE = "top.json"
+DEFAULT_OUTPUT_FILE = "../data/tarkov_items.json"
+DEFAULT_TOP_FILE = "../data/top.json"
 
 
 class Parser:

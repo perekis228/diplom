@@ -4,9 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Дробление init в gui.py">
+    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Убрано всё ненужное, после изменения работы parser.py">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/parse/parser.py" beforeDir="false" afterPath="$PROJECT_DIR$/parse/parser.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/best.pt" beforeDir="false" afterPath="$PROJECT_DIR$/model/best.pt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/detection.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/detection.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/logger.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/logger.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/overlay.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/overlay.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/parse/parser.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/parser.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -62,11 +67,11 @@
       <recent name="C:\PythonUniversity\diplom" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\PythonUniversity\diplom\logs" />
+      <recent name="C:\PythonUniversity\diplom\model" />
+      <recent name="C:\PythonUniversity\diplom\data" />
+      <recent name="C:\PythonUniversity\diplom\src" />
       <recent name="C:\PythonUniversity\diplom" />
-      <recent name="C:\PythonUniversity\diplom\runs\detect" />
-      <recent name="C:\PythonUniversity\diplom\CV2" />
-      <recent name="C:\PythonUniversity\diplom\CV2\dataset\val\labels" />
-      <recent name="C:\PythonUniversity\diplom\CV2\dataset\val\images" />
     </key>
   </component>
   <component name="RunManager">
@@ -105,29 +110,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="C:\PythonUniversity\diplom\detection.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="parser (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="diplom" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/parse" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/parse/parser.py" />
+      <option name="SCRIPT_NAME" value="C:\PythonUniversity\diplom\src\detection.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -149,7 +132,29 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="C:\PythonUniversity\diplom\parse\parser.py" />
+      <option name="SCRIPT_NAME" value="C:\PythonUniversity\diplom\src\parser.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="parser" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="diplom" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/parse" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="C:\PythonUniversity\diplom\src\parser.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -182,7 +187,6 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.parser (1)" />
         <item itemvalue="Python.test" />
         <item itemvalue="Python.cv_reader" />
         <item itemvalue="Python.parser" />
@@ -493,7 +497,23 @@
       <option name="project" value="LOCAL" />
       <updated>1777039223688</updated>
     </task>
-    <option name="localTasksCounter" value="37" />
+    <task id="LOCAL-00037" summary="Починка parser.py, теперь используется пагинация">
+      <option name="closed" value="true" />
+      <created>1777212179631</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
+      <option name="project" value="LOCAL" />
+      <updated>1777212179631</updated>
+    </task>
+    <task id="LOCAL-00038" summary="Убрано всё ненужное, после изменения работы parser.py">
+      <option name="closed" value="true" />
+      <created>1777212503229</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1777212503229</updated>
+    </task>
+    <option name="localTasksCounter" value="39" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -508,8 +528,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value=" overlay.py обрисовывает все предметы, которые получил и пишет цену над ними на 8 сек, detection.py теперь выводит 5 самых дешёвых предметов, gui.py запускает overlay.py" />
-    <MESSAGE value=" overlay.py теперь закрывается при повторном нажатии shift+L" />
     <MESSAGE value="parser.py подключён к gui.py через кнопку" />
     <MESSAGE value="В gui.py теперь есть таблица с топ 5 дорогих предметов" />
     <MESSAGE value="Исправлена ошибка вылета" />
@@ -533,6 +551,18 @@
     <MESSAGE value="Чистка кода + приложение требует прав администратора, добавлена возможность перезапуска с правами" />
     <MESSAGE value="Исправлена ошибка, связанная с выводом кириллицы" />
     <MESSAGE value="Дробление init в gui.py" />
-    <option name="LAST_COMMIT_MESSAGE" value="Дробление init в gui.py" />
+    <MESSAGE value="Починка parser.py, теперь используется пагинация" />
+    <MESSAGE value="Убрано всё ненужное, после изменения работы parser.py" />
+    <option name="LAST_COMMIT_MESSAGE" value="Убрано всё ненужное, после изменения работы parser.py" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/detection.py</url>
+          <option name="timeStamp" value="3" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>

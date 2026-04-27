@@ -3,7 +3,7 @@ import sys
 from datetime import datetime
 import inspect
 
-LOG_FILE = os.path.join(os.getcwd(), "tarkov_detector.log")
+LOG_FILE = os.path.join(os.getcwd(), "../logs/tarkov_detector.log")
 
 
 def _format_timestamp() -> str:

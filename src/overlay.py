@@ -9,7 +9,10 @@ from PyQt5.QtWidgets import QApplication, QWidget
 
 from logger import log_both, log_to_file
 
-sys.stdout.reconfigure(encoding='utf-8')
+sys.stdout.reconfigure(encoding='utf-8')  # type: ignore
+
+FLAG_PATH = os.path.join(os.getcwd(), "../temp/overlay_exit.flag")
+TEMP_DETECTION_PATH = os.path.join(os.getcwd(), "../temp/temp_detection_result.json")
 
 
 class OverlayWindow(QWidget):
@@ -17,12 +20,18 @@ class OverlayWindow(QWidget):
     _overlay_font = QFont("Arial", 11, QFont.Bold)
     _overlay_font_metrics = QFontMetrics(_overlay_font)
 
-    def __init__(self):
+    def __init__(
+            self,
+            flag_path: str = FLAG_PATH,
+            temp_detection_path: str = TEMP_DETECTION_PATH
+    ):
         """Инициализация окна наложения с прозрачным пользовательским интерфейсом и завершения проверки флага."""
         super().__init__()
         self.items = []
         self._init_ui()
         self._setup_exit_check()
+        self._flag_path = flag_path
+        self._temp_detection_path = temp_detection_path
 
     def _setup_exit_check(self) -> None:
         """Установка таймера для периодической проверки файла с флагом выхода."""
@@ -32,19 +41,17 @@ class OverlayWindow(QWidget):
 
     def _check_exit_flag(self) -> None:
         """Проверяет наличие флага выхода из файла и закрывает окно, если он есть."""
-        flag_path = os.path.join(os.getcwd(), "overlay_exit.flag")
-        temp_detection_path = os.path.join(os.getcwd(), "temp_detection_result.json")
-        if os.path.exists(flag_path):
+        if os.path.exists(self._flag_path):
             self._exit_flag_timer.stop()
             log_both("Обнаружен файл завершения, закрываю окно")
             try:
-                os.remove(flag_path)
+                os.remove(self._flag_path)
             except OSError as e:
                 log_to_file(f"Ошибка удаления флага: {e}", "ERROR")
 
-            if os.path.exists(temp_detection_path):
+            if os.path.exists(self._temp_detection_path):
                 try:
-                    os.remove(temp_detection_path)
+                    os.remove(self._temp_detection_path)
                 except OSError as e:
                     log_to_file(f"Ошибка удаления temp файла: {e}", "ERROR")
             self.close()
