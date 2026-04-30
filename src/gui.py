@@ -41,6 +41,7 @@ from functools import partial
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
+sys.stdout.reconfigure(encoding='utf-8')
 
 # Создаем класс-посредник для обработки горячих клавиш в отдельном потоке
 class HotkeyHandler(QObject):
@@ -64,7 +65,8 @@ class HotkeyHandler(QObject):
                 return False
 
             # Регистрируем горячую клавишу
-            self.hotkey_global = keyboard.add_hotkey('shift+l', self._on_hotkey)
+            self.unregister_hotkey()
+            self.hotkey_global = keyboard.add_hotkey('shift+l', self._on_hotkey, suppress=True)
             self.is_registered = True
             return True
 
@@ -191,13 +193,16 @@ class Switch(QAbstractButton):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        for sub in ("temp", "data", "logs"):
+            path = os.path.join(PROJECT_ROOT, sub)
+            os.makedirs(path, exist_ok=True)
+        self._processes = {}
+        self._stdout_handlers = {}
+        self._stderr_handlers = {}
+        self._finished_handlers = {}
         self.is_on = False  # Флаг состояния детектора (включен/выключен)
-        self.detection_process = None  # Переменная для хранения объекта процесса detection.py
-        self.overlay_process = None  # Переменная для хранения объекта процесса overlay.py
-        self.parse_process = None  # Переменная для хранения объекта процесса parser.py
         self.screenshot_path = None  # Путь к последнему сделанному скриншоту
         self.hotkey_handler = None  # Обработчик горячих клавиш
-        # self.top_table = None  # Хранение предметов для ТОП таблицы
         self.all_items_data = {}  # Хранение всех предметов
         self.favorite_items_data = {}  # Хранение избранного
         self.search_timer = QTimer()  # Задержка поиска предметов
@@ -242,7 +247,8 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(self._create_fourth_column(), 25)  # Избранное
 
         # Загружаем данные
-        self.load_items_data("../data/tarkov_items.json", self.all_items_data)
+        items_file = os.path.join(PROJECT_ROOT, "data", "tarkov_items.json")
+        self.load_items_data(items_file, self.all_items_data)
 
         # Устанавливаем начальное состояние
         self.update_ui()
@@ -280,7 +286,7 @@ class MainWindow(QMainWindow):
 
         # Switch для выбора количества предметов
         self.switch = Switch()
-        self.switch.toggled.connect(self.on_switch_toggled)
+        self.switch.switchToggled.connect(self.on_switch_toggled)
         layout.addWidget(self.switch, alignment=Qt.AlignCenter)
 
         # Кнопки управления
@@ -299,7 +305,7 @@ class MainWindow(QMainWindow):
 
     def _create_run_button(self):
         """Создаёт кнопку запуска детекции"""
-        button = QPushButton("Сделать скриншот и запустить detection.py (Shift+L)")
+        button = QPushButton("Начать/остановить детекцию и вывод в оверлее (Shift+L)")
         button.clicked.connect(self.take_screenshot_and_run)
         button.setEnabled(False)
         self.run_button = button
@@ -448,7 +454,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._create_favorite_table())
 
         # Загружаем данные
-        self.load_items_data("../data/favorite.json", self.favorite_items_data)
+        favorite_file = os.path.join(PROJECT_ROOT, "data", "favorite.json")
+        self.load_items_data(favorite_file, self.favorite_items_data)
         self.favorite_table_update()
 
         return layout
@@ -491,10 +498,10 @@ class MainWindow(QMainWindow):
         """
 
     def _del_log(self):
-        file_path = "../logs/tarkov_detector.log"
-        if os.path.exists(file_path):
+        log_path = os.path.join(PROJECT_ROOT, "logs", "tarkov_detector.log")
+        if os.path.exists(log_path):
             try:
-                os.remove(file_path)
+                os.remove(log_path)
             except Exception as e:
                 self.append_to_console(f"Ошибка удаления лога: {e}", "orange")
 
@@ -545,11 +552,11 @@ class MainWindow(QMainWindow):
     def clear_favorite(self):
         try:
             self.favorite_items_data.clear()
-            file_path = "../data/favorite.json"
+            favorite_path = os.path.join(PROJECT_ROOT, "data", "favorite.json")
 
             to_load = {"items": self.favorite_items_data}
-            if os.path.exists(file_path):
-                with open(file_path, 'w', encoding='utf-8') as f:
+            if os.path.exists(favorite_path):
+                with open(favorite_path, 'w', encoding='utf-8') as f:
                     json.dump(to_load, f)
             self.favorite_table_update()
             self.append_to_console("Избранное очищено")
@@ -636,12 +643,12 @@ class MainWindow(QMainWindow):
             name = table.item(row, 1).text()
             price = table.item(row, 2).text()
 
-            file_path = "../data/favorite.json"
+            favorite_path = os.path.join(PROJECT_ROOT, "data", "favorite.json")
 
             favorites = {}
-            if os.path.exists(file_path):
+            if os.path.exists(favorite_path):
                 try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
+                    with open(favorite_path, 'r', encoding='utf-8') as f:
                         favorites = json.load(f).get("items", {})
                 except (json.JSONDecodeError, FileNotFoundError):
                     favorites = {}
@@ -659,7 +666,7 @@ class MainWindow(QMainWindow):
 
             to_load = {"items": favorites}
             # Сохраняем в файл
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(favorite_path, 'w', encoding='utf-8') as f:
                 json.dump(to_load, f, ensure_ascii=False, indent=4)
 
             self.append_to_console(f"Товар '{short_name}' добавлен в избранное")
@@ -673,18 +680,24 @@ class MainWindow(QMainWindow):
         try:
             short_name = table.item(row, 0).text()
 
-            file_path = "../data/favorite.json"
+            favorite_path = os.path.join(PROJECT_ROOT, "data", "favorite.json")
 
-            if short_name not in self.favorite_items_data:
+            favorite = {}
+            if os.path.exists(favorite_path):
+                with open(favorite_path, 'r', encoding='utf-8') as f:
+                    favorite = json.load(f).get("items", {})
+
+            if short_name not in favorite:
                 self.append_to_console(f"Товара '{short_name}' нет в избранном")
                 return
-            del self.favorite_items_data[short_name]
+            del favorite[short_name]
 
-            to_load = {"items": self.favorite_items_data}
+            to_save = {"items": favorite}
             # Сохраняем в файл
-            with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(to_load, f, ensure_ascii=False, indent=4)
+            with open(favorite_path, 'w', encoding='utf-8') as f:
+                json.dump(to_save, f, ensure_ascii=False, indent=4)
 
+            self.favorite_items_data = favorite
             self.append_to_console(f"Товар '{short_name}' удалён из избранного")
             self.favorite_table_update()
 
@@ -757,6 +770,116 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"Ошибка в поиске: {e}")
             traceback.print_exc()
+
+    def _start_script(self, script_name, args, button, stdout_handler,
+                      stderr_handler=None, finished_handler=None):
+        process_key = script_name  # можно совпадает с именем скрипта
+
+        # Проверка, не запущен ли уже такой процесс
+        if process_key in self._processes and self._processes[process_key].state() == QProcess.Running:
+            self.append_to_console(f"{process_key} уже запущен!", "orange")
+            return
+
+        # Если процесс мёртв, удаляем его
+        if process_key in self._processes:
+            self._processes[process_key].deleteLater()
+            del self._processes[process_key]
+
+        # Создаём процесс
+        proc = QProcess()
+        proc.setWorkingDirectory(PROJECT_ROOT)
+
+        # Окружение
+        env = QProcessEnvironment.systemEnvironment()
+        env.insert("PYTHONPATH", PROJECT_ROOT)
+        env.insert("PYTHONIOENCODING", "utf-8")
+        # Для detection дополнительно PYTHONUTF8, можно всегда добавлять
+        env.insert("PYTHONUTF8", "1")
+        proc.setProcessEnvironment(env)
+
+        proc.setProcessChannelMode(QProcess.MergedChannels)
+
+        # Сохраняем ссылку на процесс и обработчики
+        self._processes[process_key] = proc
+        self._stdout_handlers[process_key] = stdout_handler
+        if stderr_handler:
+            self._stderr_handlers[process_key] = stderr_handler
+        else:
+            self._stderr_handlers[process_key] = lambda text: self.append_to_console(f"[STDERR] {text}", "red")
+        if finished_handler:
+            self._finished_handlers[process_key] = finished_handler
+
+        # Подключаем сигналы
+        proc.readyReadStandardOutput.connect(lambda: self._on_process_stdout(process_key))
+        proc.readyReadStandardError.connect(lambda: self._on_process_stderr(process_key))
+        proc.started.connect(lambda: self._on_process_started(process_key, button))
+        proc.finished.connect(lambda exit_code, exit_status:
+                              self._on_process_finished(process_key, button, exit_code, exit_status))
+        proc.errorOccurred.connect(lambda error: self._on_process_error(process_key, button, error))
+
+        # Полный путь к скрипту
+        script_path = os.path.join(BASE_DIR, script_name)
+        if not os.path.exists(script_path):
+            self.append_to_console(f"Файл {script_path} не найден", "red")
+            return
+
+        # Запускаем
+        proc.start(sys.executable, [script_path] + args)
+
+    def _on_process_stdout(self, process_key):
+        proc = self._processes.get(process_key)
+        if not proc:
+            return
+        data = proc.readAllStandardOutput()
+        text = bytes(data).decode('utf-8', errors='replace').strip()
+        if text and self._stdout_handlers.get(process_key):
+            self._stdout_handlers[process_key](text)
+
+    def _on_process_stderr(self, process_key):
+        proc = self._processes.get(process_key)
+        if not proc:
+            return
+        data = proc.readAllStandardError()
+        text = bytes(data).decode('utf-8', errors='replace').strip()
+        if text and process_key in self._stderr_handlers:
+            self._stderr_handlers[process_key](text)
+
+    def _on_process_started(self, process_key, button):
+        self.append_to_console(f"{process_key} успешно запущен!", "green")
+        if button:
+            button.setEnabled(False)
+
+    def _on_process_finished(self, process_key, button, exit_code, exit_status):
+        if exit_status == QProcess.NormalExit:
+            self.append_to_console(f"{process_key} завершился с кодом {exit_code}", "yellow")
+        else:
+            self.append_to_console(f"{process_key} аварийно завершён", "red")
+
+        if button:
+            button.setEnabled(True)
+
+        # Вызов дополнительного обработчика, если есть
+        if process_key in self._finished_handlers:
+            self._finished_handlers[process_key](exit_code, exit_status)
+
+        # Очистка
+        proc = self._processes.pop(process_key, None)
+        if proc:
+            proc.deleteLater()
+
+    def _on_process_error(self, process_key, button, error):
+        error_messages = {
+            QProcess.FailedToStart: "Не удалось запустить процесс",
+            QProcess.Crashed: "Процесс упал",
+            QProcess.Timedout: "Таймаут процесса",
+            QProcess.WriteError: "Ошибка записи",
+            QProcess.ReadError: "Ошибка чтения",
+            QProcess.UnknownError: "Неизвестная ошибка"
+        }
+        msg = error_messages.get(error, f"Ошибка {error}")
+        self.append_to_console(f"Ошибка процесса {process_key}: {msg}", "red")
+        if button:
+            button.setEnabled(True)
 
     def update_search_table(self, items):
         """Обновление таблицы результатов поиска"""
@@ -856,7 +979,8 @@ class MainWindow(QMainWindow):
 
         if self.is_on:
             # Если оверлей запущен - останавливаем
-            if self.overlay_process and self.overlay_process.state() == QProcess.Running:
+            proc = self._processes.get("overlay.py")
+            if proc and proc.state() == QProcess.Running:
                 self.append_to_console("Оверлей запущен, останавливаю...", "orange")
                 self.stop_overlay()
             else:
@@ -867,108 +991,34 @@ class MainWindow(QMainWindow):
             self.append_to_console("Детектор выключен. Сначала включите детектор", "orange")
 
     def parse(self):
-        """Запускает parser.py"""
-        try:
-            if self.parse_process and self.parse_process.state() == QProcess.Running:
-                self.append_to_console("Процесс уже запущен!", "orange")
-                return
+        # Специфичный аргумент: количество предметов
+        num_of_items = self.number_spinbox.value()
 
-            self.parse_process = QProcess()
-            # Устанавливаем рабочую директорию
-            project_root = os.path.dirname(os.path.abspath(__file__))
-            self.parse_process.setWorkingDirectory(project_root)
+        # Обработчик вывода (просто печатаем в консоль)
+        def handle_stdout(text):
+            self.append_to_console(text)
 
-            # Настройка окружения
-            env = QProcessEnvironment.systemEnvironment()
-            env.insert("PYTHONPATH", project_root)  # Добавляем корень проекта
-            env.insert("PYTHONIOENCODING", "utf-8")
-            self.parse_process.setProcessEnvironment(env)
-
-            # Объединяем stdout (стандартный вывод) и stderr (ошибки) в один поток
-            self.parse_process.setProcessChannelMode(QProcess.MergedChannels)
-
-            # ========== ПОДКЛЮЧАЕМ СИГНАЛЫ ПРОЦЕССА ==========
-            # Сигнал readyReadStandardOutput - когда есть данные в stdout
-            self.parse_process.readyReadStandardOutput.connect(self.handle_stdout_parse)
-            # Сигнал readyReadStandardError - когда есть данные в stderr
-            self.parse_process.readyReadStandardError.connect(self.handle_stderr_parse)
-            # Сигнал finished - когда процесс завершился
-            self.parse_process.finished.connect(self.process_finished_parse)
-            # Сигнал started - когда процесс успешно запустился
-            self.parse_process.started.connect(self.process_started_parse)
-            # Обработка ошибок процесса
-            self.parse_process.errorOccurred.connect(self.process_error_parse)
-
-            # Получаем число из спинбокса
-            num_of_items = self.number_spinbox.value()
-
-            # Запускаем parser.py
-            # sys.executable - путь к текущему интерпретатору Python
-            filename = "parser.py"
-            if not os.path.exists(filename):
-                self.append_to_console(f"Ошибка: файл {filename} не найден", "red")
-                return
-            self.parse_process.start(sys.executable, [filename, str(num_of_items)])
-
-            # Ждем запуска процесса максимум 3 секунды
-            if not self.parse_process.waitForStarted(3000):
-                self.append_to_console("Ошибка: не удалось запустить процесс", "red")
-                return
-
-            self.parse_button.setEnabled(False)
-        except Exception as e:  # Ловим любые исключения
-            self.append_to_console(f"Ошибка при запуске parser.py: {e}", "red")
-
-    def process_error_parse(self, error):
-        """Обработчик ошибок процесса"""
-        error_messages = {
-            QProcess.FailedToStart: "Не удалось запустить процесс",
-            QProcess.Crashed: "Процесс упал",
-            QProcess.Timedout: "Таймаут процесса",
-            QProcess.WriteError: "Ошибка записи",
-            QProcess.ReadError: "Ошибка чтения",
-            QProcess.UnknownError: "Неизвестная ошибка"
-        }
-        error_msg = error_messages.get(error, f"Ошибка {error}")
-        self.append_to_console(f"Ошибка процесса parser.py: {error_msg}", "red")
-        self.parse_button.setEnabled(True)
-
-    def process_error_detection(self, error):
-        """Обработчик ошибок процесса"""
-        error_messages = {
-            QProcess.FailedToStart: "Не удалось запустить процесс",
-            QProcess.Crashed: "Процесс упал",
-            QProcess.Timedout: "Таймаут процесса",
-            QProcess.WriteError: "Ошибка записи",
-            QProcess.ReadError: "Ошибка чтения",
-            QProcess.UnknownError: "Неизвестная ошибка"
-        }
-        error_msg = error_messages.get(error, f"Ошибка {error}")
-        self.append_to_console(f"Ошибка процесса detection.py: {error_msg}", "red")
-        self.parse_button.setEnabled(True)
-
-    def process_started_parse(self):
-        """Обработчик запуска процесса"""
-        self.append_to_console("parser.py успешно запущен!", "green")
-
-    def process_finished_parse(self, exit_code, exit_status):
-        """Обработчик завершения процесса"""
-        # exit_code - код возврата (0 обычно означает успех)
-        # exit_status - как завершился (NormalExit или CrashExit)
-        if exit_status == QProcess.NormalExit:
-            self.append_to_console(f"parser.py завершил работу с кодом {exit_code}", "yellow")
-            # Если успешный парсинг, то обновляем таблицу
-            if exit_code == 0:
+        # После завершения обновим таблицу, если парсинг успешен
+        def on_finished(exit_code, exit_status):
+            if exit_status == QProcess.NormalExit and exit_code == 0:
                 self.top_table_update()
-        else:  # Если аварийное завершение
-            self.append_to_console(f"parser.py был аварийно завершен", "red")
 
-        self.parse_button.setEnabled(True)  # Разблокируем кнопку запуска
+        self._start_script(
+            script_name="parser.py",
+            args=[str(num_of_items)],
+            button=self.parse_button,
+            stdout_handler=handle_stdout,
+            finished_handler=on_finished
+        )
 
     def take_screenshot_and_run(self):
         """Делает скриншот всего экрана и запускает detection.py с путем к скриншоту"""
         try:
-            # Получаем основной экран
+            proc = self._processes.get("detection.py")
+            if proc and proc.state() == QProcess.Running:
+                self.append_to_console("Процесс уже запущен!", "orange")
+                return
+
             screen = QApplication.primaryScreen()
             if not screen:
                 self.append_to_console("Ошибка: не удалось получить доступ к экрану", "red")
@@ -993,154 +1043,52 @@ class MainWindow(QMainWindow):
             self.append_to_console(f"Ошибка при создании скриншота: {e}", "red")
 
     def run_detect_with_screenshot(self):
-        """Запускает detection.py с передачей пути к скриншоту в качестве аргумента"""
-        try:
-            # Проверяем, не запущен ли уже процесс
-            if self.detection_process and self.detection_process.state() == QProcess.Running:
-                self.append_to_console("Процесс уже запущен!", "orange")
-                return
+        # Скриншот уже сделан в take_screenshot_and_run, путь в self.screenshot_path
+        if not self.screenshot_path or not os.path.exists(self.screenshot_path):
+            self.append_to_console("Скриншот не найден", "red")
+            return
 
-            if self.detection_process:
-                self.detection_process.deleteLater()
+        def handle_stdout(text):
+            # Парсим JSON – специфичная логика detection
+            try:
+                items_data = json.loads(text)
+                self.process_detection_result(items_data)
+            except json.JSONDecodeError:
+                self.append_to_console(text)
 
-            # Проверяем, существует ли файл скриншота
-            if not self.screenshot_path or not os.path.exists(self.screenshot_path):
-                self.append_to_console(f"Ошибка: файл скриншота не найден: {self.screenshot_path}", "red")
-                return
+        def on_finished(exit_code, exit_status):
+            # Удаляем скриншот после обработки
+            if self.screenshot_path and os.path.exists(self.screenshot_path):
+                try:
+                    os.remove(self.screenshot_path)
+                    self.append_to_console(f"Скриншот {self.screenshot_path} удалён", "gray")
+                except Exception as e:
+                    self.append_to_console(f"Ошибка удаления: {e}", "orange")
+                finally:
+                    self.screenshot_path = None
 
-            detection_script = os.path.join(BASE_DIR, "detection.py")
-            if not os.path.exists(detection_script):
-                self.append_to_console("Файл detection.py не найден", "red")
-                return
-
-            # Создаем новый объект QProcess (управляет внешним процессом)
-            self.detection_process = QProcess()
-            # Объединяем stdout (стандартный вывод) и stderr (ошибки) в один поток
-            self.detection_process.setProcessChannelMode(QProcess.MergedChannels)
-
-            env = QProcessEnvironment.systemEnvironment()
-            env.insert("PYTHONIOENCODING", "utf-8")  # Принудительно UTF-8 для Python
-            env.insert("PYTHONUTF8", "1")  # PEP 540: UTF-8 режим в Python 3.7+
-            self.detection_process.setProcessEnvironment(env)
-
-            # ========== ПОДКЛЮЧАЕМ СИГНАЛЫ ПРОЦЕССА ==========
-            # Сигнал readyReadStandardOutput - когда есть данные в stdout
-            self.detection_process.readyReadStandardOutput.connect(self.handle_stdout_detection)
-            # Сигнал readyReadStandardError - когда есть данные в stderr
-            self.detection_process.readyReadStandardError.connect(self.handle_stderr_detection)
-            # Сигнал finished - когда процесс завершился
-            self.detection_process.finished.connect(self.process_finished_detection)
-            # Сигнал started - когда процесс успешно запустился
-            self.detection_process.started.connect(self.process_started_detection)
-            self.detection_process.errorOccurred.connect(self.process_error_detection)
-
-            # Запускаем detection.py и передаем путь к скриншоту и количество предметов как аргументы командной строки
-            # sys.executable - путь к текущему интерпретатору Python
-            self.detection_process.start(sys.executable, ["detection.py",
-                                                          self.screenshot_path,
-                                                          str(self.n_items_for_detection)])
-
-            # Ждем запуска процесса максимум 3 секунды
-            if not self.detection_process.waitForStarted(3000):
-                self.append_to_console("Ошибка: не удалось запустить процесс", "red")
-                return
-
-            self.run_button.setEnabled(False)  # Блокируем кнопку запуска
-
-        except Exception as e:  # Ловим любые исключения
-            self.append_to_console(f"Ошибка при запуске: {e}", "red")
+        self._start_script(
+            script_name="detection.py",
+            args=[self.screenshot_path, str(self.n_items_for_detection)],
+            button=self.run_button,
+            stdout_handler=handle_stdout,
+            finished_handler=on_finished
+        )
 
     def append_to_console(self, text, color=None):
-        """Добавляет текст в консоль с опциональным цветом"""
         if color:
-            # Формируем HTML-строку с цветом текста
-            colored_text = f'<font color="{color}">{html.escape(text)}</font>'
-            self.console.append(colored_text)
+            safe_text = html.escape(text)
+            colored_html = f'<font color="{color}">{safe_text}</font>'
+            self.console.insertHtml(colored_html + '<br>')
         else:
-            self.console.append(text)
-
-        # Автоматическая прокрутка вниз при добавлении нового текста
-        scrollbar = self.console.verticalScrollBar()  # Получаем вертикальный скроллбар консоли
-        scrollbar.setValue(scrollbar.maximum())  # Устанавливаем позицию скролла на максимум (вниз)
+            self.console.insertPlainText(text + '\n')
+        # автопрокрутка
+        scrollbar = self.console.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
 
     def clear_console(self):
         """Очищает консоль"""
         self.console.clear()
-
-    def handle_stdout_detection(self):
-        """Обработка стандартного вывода с парсингом JSON"""
-        if self.detection_process:
-            # Читаем все данные из стандартного вывода
-            data = self.detection_process.readAllStandardOutput()  # QByteArray
-            # Декодируем байты в строку UTF-8, заменяем ошибки
-            text = bytes(data).decode('utf-8', errors='replace').strip()
-
-            if text.strip():
-                try:
-                    # Пробуем преобразовать текст в JSON
-                    items_data = json.loads(text.strip())
-                    self.process_detection_result(items_data)
-                except json.JSONDecodeError:
-                    self.append_to_console(text.strip())
-
-    def handle_stderr_detection(self):
-        """Обработка стандартного вывода ошибок"""
-        if self.detection_process:
-            # Читаем все данные из потока ошибок
-            data = self.detection_process.readAllStandardError()
-            # Декодируем байты в строку
-            text = bytes(data).decode('utf-8', errors='replace').strip()
-            if text:
-                self.append_to_console(f"[ОШИБКА] {text}", "red")
-
-    def handle_stdout_parse(self):
-        """Обработка стандартного вывода с парсингом JSON"""
-        if self.parse_process:
-            try:
-                # Читаем все данные из стандартного вывода
-                data = self.parse_process.readAllStandardOutput()  # QByteArray
-                # Декодируем байты в строку UTF-8, заменяем ошибки
-                text = bytes(data).decode('utf-8', errors='replace').strip()
-                if text:
-                    self.append_to_console(text)
-            except Exception as e:
-                self.append_to_console(f"Ошибка при чтении вывода: {e}", "red")
-
-    def handle_stderr_parse(self):
-        """Обработка стандартного вывода ошибок"""
-        if self.parse_process:
-            # Читаем все данные из потока ошибок
-            data = self.parse_process.readAllStandardError()
-            # Декодируем байты в строку
-            text = bytes(data).decode('utf-8', errors='replace').strip()
-            if text:
-                self.append_to_console(f"[ОШИБКА] {text}", "red")
-
-    def process_started_detection(self):
-        """Обработчик запуска процесса"""
-        self.append_to_console("detection.py успешно запущен!", "green")
-
-    def process_finished_detection(self, exit_code, exit_status):
-        """Обработчик завершения процесса"""
-        # exit_code - код возврата (0 обычно означает успех)
-        # exit_status - как завершился (NormalExit или CrashExit)
-
-        if exit_status == QProcess.NormalExit:
-            self.append_to_console(f"detection.py завершил работу с кодом {exit_code}", "yellow")
-        else:  # Если аварийное завершение
-            self.append_to_console(f"detection.py был аварийно завершен", "red")
-
-        self.run_button.setEnabled(True)  # Разблокируем кнопку запуска
-
-        # Удаляем скриншот после обработки
-        if self.screenshot_path and os.path.exists(self.screenshot_path):
-            try:
-                os.remove(self.screenshot_path)
-                self.append_to_console(f"Скриншот {self.screenshot_path} удалён", "gray")
-            except Exception as e:
-                self.append_to_console(f"Ошибка удаления скриншота: {e}", "orange")
-            finally:
-                self.screenshot_path = None
 
     def update_ui(self):
         """Единый метод для обновления интерфейса"""
@@ -1213,27 +1161,22 @@ class MainWindow(QMainWindow):
         """Закрытие главного окна"""
         self.append_to_console("Закрытие приложения...", "orange")
 
-        # Останавливаем оверлей
-        if self.overlay_process:
-            self.force_stop_overlay()
-
-        # Останавливаем detection
-        if self.detection_process and self.detection_process.state() == QProcess.Running:
-            self.detection_process.terminate()
-            self.detection_process.waitForFinished(1000)
+        for key, proc in self._processes.items():
+            if proc.state() == QProcess.Running:
+                proc.terminate()
+                proc.waitForFinished(1000)
 
         # Отменяем горячую клавишу
         if self.hotkey_handler:
             self.hotkey_handler.unregister_hotkey()
 
         temp_files = [
-            "../temp/screenshot.png",
-            "../temp/temp_detection_result.json",
-            "../temp/overlay_exit.flag"
+            os.path.join(PROJECT_ROOT, "temp", "screenshot.png"),
+            os.path.join(PROJECT_ROOT, "temp", "temp_detection_result.json"),
+            os.path.join(PROJECT_ROOT, "temp", "overlay_exit.flag")
         ]
 
-        for filename in temp_files:
-            filepath = os.path.join(os.getcwd(), filename)
+        for filepath in temp_files:
             if os.path.exists(filepath):
                 try:
                     os.remove(filepath)
@@ -1243,83 +1186,48 @@ class MainWindow(QMainWindow):
         event.accept()
 
     def process_detection_result(self, items):
-        """Обрабатывает результат из detection.py и запускает оверлей"""
+        if "overlay.py" in self._processes:
+            self.force_stop_overlay("overlay.py")
 
         if not items:
             self.append_to_console("Нет предметов для отображения", "yellow")
             return
 
-        # Останавливаем старый процесс
-        if self.overlay_process is not None:
-            self.append_to_console("Обнаружен старый процесс оверлея, останавливаю...", "orange")
-            self.force_stop_overlay()
-            import time
-            time.sleep(1.5)
-            self.overlay_process = None
-
-        detection_script = os.path.join(os.path.dirname(__file__), "overlay.py")
-        if not os.path.exists(detection_script):
-            self.append_to_console("Файл overlay.py не найден", "red")
-            return
-
-        # Сохраняем данные
-
+        # Сохраняем данные во временный файл
         temp_file = os.path.join(PROJECT_ROOT, "temp", "temp_detection_result.json")
-
         try:
             with open(temp_file, 'w', encoding='utf-8') as f:
                 json.dump(items, f)
-            self.append_to_console(f"Данные сохранены в {temp_file}", "green")
         except Exception as e:
             self.append_to_console(f"Ошибка сохранения файла: {e}", "red")
             return
 
-        # Создаём новый процесс
-        self.overlay_process = QProcess(self)
-        self.overlay_process.readyReadStandardOutput.connect(self.handle_overlay_stdout)
-        self.overlay_process.readyReadStandardError.connect(self.handle_overlay_stderr)
-        self.overlay_process.finished.connect(self.overlay_finished)
-        self.overlay_process.errorOccurred.connect(self.overlay_error)
+        # Обработчики для overlay
+        def handle_stdout(text):
+            self.append_to_console(text, "cyan")
 
-        # Запускаем
-        self.overlay_process.start(sys.executable, ["overlay.py", temp_file])
+        def handle_stderr(text):
+            self.append_to_console(f"[Overlay ERROR] {text}", "red")
 
-        if not self.overlay_process.waitForStarted(3000):
-            self.append_to_console("Ошибка: не удалось запустить overlay.py", "red")
-            self.overlay_process = None
-            return
-
-        pid = self.overlay_process.processId()
-        self.append_to_console(f"Оверлей запущен (PID: {pid})", "green")
-
-    def handle_overlay_stdout(self):
-        """Обработка вывода overlay.py (только важные сообщения)"""
-        if self.overlay_process:
-            data = self.overlay_process.readAllStandardOutput()
-            text = bytes(data).decode('utf-8', errors='replace').strip()
-            if text:
-                # Просто выводим в консоль GUI (без префикса [Overlay], он уже есть)
-                self.append_to_console(text, "cyan")
-
-    def handle_overlay_stderr(self):
-        """Обработка ошибок overlay.py"""
-        if self.overlay_process:
-            data = self.overlay_process.readAllStandardError()
-            text = bytes(data).decode('utf-8', errors='replace').strip()
-            if text:
-                self.append_to_console(f"[Overlay ERROR] {text}", "red")
+        # Overlay не блокирует кнопки (запускается автоматически)
+        self._start_script(
+            script_name="overlay.py",
+            args=[temp_file],
+            button=None,  # нечего блокировать
+            stdout_handler=handle_stdout,
+            stderr_handler=handle_stderr
+        )
 
     def stop_overlay(self):
-        """Останавливает оверлей через файл-флаг"""
-
-        if not self.overlay_process:
+        process_key = "overlay.py"
+        proc = self._processes.get(process_key)
+        if not proc or proc.state() != QProcess.Running:
             self.append_to_console("Оверлей не запущен", "yellow")
             return
 
-        pid = self.overlay_process.processId()
+        pid = proc.processId()
         self.append_to_console(f"Остановка оверлея (PID: {pid})...", "orange")
 
-        # Создаём файл-флаг
         flag_path = os.path.join(PROJECT_ROOT, "temp", "overlay_exit.flag")
         try:
             with open(flag_path, 'w') as f:
@@ -1328,56 +1236,39 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.append_to_console(f"Ошибка создания файла-флага: {e}", "red")
 
-        # Ждём 2 секунды
-        if self.overlay_process.waitForFinished(2000):
-            self.append_to_console("Оверлей остановлен", "green")
-            self.overlay_process = None
+        self.append_to_console("Отправлен SIGTERM, ожидание 3 секунды...", "cyan")
+        proc.terminate()
+        QTimer.singleShot(3000, lambda: self._check_overlay_terminate(process_key))
+
+    def _check_overlay_terminate(self, process_key="overlay.py"):
+        """Вызывается через 3 секунды после terminate. Если процесс ещё жив — убиваем."""
+        proc = self._processes.get(process_key)
+        if not proc:
             return
-
-        # SIGTERM
-        self.append_to_console("Оверлей не ответил, отправляю SIGTERM...", "orange")
-        self.overlay_process.terminate()
-
-        if self.overlay_process.waitForFinished(2000):
-            self.append_to_console("Оверлей остановлен (SIGTERM)", "green")
-            self.overlay_process = None
+        if proc.state() != QProcess.Running:
+            self.append_to_console("Оверлей успешно завершился после SIGTERM", "green")
+            # Очистка произойдёт в overlay_finished
             return
+        # Процесс всё ещё запущен — принудительно kill
+        self.append_to_console("Оверлей не ответил на SIGTERM, принудительная остановка...", "red")
+        self.force_stop_overlay(process_key)
 
-        # SIGKILL
-        self.force_stop_overlay()
-
-    def force_stop_overlay(self):
+    def force_stop_overlay(self, process_key="overlay.py"):
         """Принудительная остановка"""
-        if not self.overlay_process:
+        proc = self._processes.pop(process_key, None)
+        if not proc:
             return
-        pid = self.overlay_process.processId()
+        pid = proc.processId()
         self.append_to_console(f"Принудительное завершение процесса {pid}", "red")
-        self.overlay_process.kill()
-        self.overlay_process.waitForFinished(1000)
-        self.overlay_process = None
-        # Удаляем флаг на всякий случай
+        proc.kill()
+        proc.deleteLater()
+
         flag_path = os.path.join(PROJECT_ROOT, "temp", "overlay_exit.flag")
         if os.path.exists(flag_path):
-            os.remove(flag_path)
-
-    def overlay_error(self, error):
-        error_messages = {
-            QProcess.FailedToStart: "Не удалось запустить процесс",
-            QProcess.Crashed: "Процесс упал",
-            QProcess.Timedout: "Таймаут процесса",
-            QProcess.ReadError: "Ошибка чтения",
-            QProcess.UnknownError: "Неизвестная ошибка"
-        }
-        error_msg = error_messages.get(error, f"Ошибка {error}")
-        self.append_to_console(f"Ошибка overlay.py: {error_msg}", "red")
-
-    def overlay_finished(self, exit_code, exit_status):
-        """Обработчик завершения оверлея"""
-        if exit_status == QProcess.NormalExit:
-            self.append_to_console(f"Оверлей завершил работу (код: {exit_code})", "yellow")
-        else:
-            self.append_to_console(f"overlay.py был аварийно завершен", "red")
-        self.overlay_process = None
+            try:
+                os.remove(flag_path)
+            except:
+                pass
 
     def top_table_update(self):
         """Обновляет таблицу данными из top.json"""
