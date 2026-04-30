@@ -11,8 +11,10 @@ from logger import log_both, log_to_file
 
 sys.stdout.reconfigure(encoding='utf-8')  # type: ignore
 
-FLAG_PATH = os.path.join(os.getcwd(), "../temp/overlay_exit.flag")
-TEMP_DETECTION_PATH = os.path.join(os.getcwd(), "../temp/temp_detection_result.json")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+FLAG_PATH = os.path.join(PROJECT_ROOT, "temp", "overlay_exit.flag")
+TEMP_DETECTION_PATH = os.path.join(PROJECT_ROOT, "temp", "temp_detection_result.json")
 
 
 class OverlayWindow(QWidget):

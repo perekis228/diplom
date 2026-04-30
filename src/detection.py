@@ -9,8 +9,10 @@ from logger import log_both, log_to_file, log_to_console
 
 sys.stdout.reconfigure(encoding='utf-8')  # type: ignore
 
-DEFAULT_JSON_PATH = '../data/tarkov_items.json'
-DEFAULT_MODEL_PATH = '../model/best.pt'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+DEFAULT_JSON_PATH = os.path.join(PROJECT_ROOT, "data", "tarkov_items.json")
+DEFAULT_MODEL_PATH = os.path.join(PROJECT_ROOT, "model", "best.pt")
 DEFAULT_CONF_THRESHOLD = 0.7
 DEFAULT_N_OUTPUT = 5
 

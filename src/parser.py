@@ -1,5 +1,6 @@
 import json
 import sys
+import os
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -17,8 +18,10 @@ DEFAULT_CACHE_AGE_HOURS = 1
 REQUEST_LIMIT = 1000
 API_BASE_URL = "https://api.tarkov.dev/graphql"
 USER_AGENT = "Mozilla/5.0 (Diploma Project)"
-DEFAULT_OUTPUT_FILE = "../data/tarkov_items.json"
-DEFAULT_TOP_FILE = "../data/top.json"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+DEFAULT_OUTPUT_FILE = os.path.join(PROJECT_ROOT, "data", "tarkov_items.json")
+DEFAULT_TOP_FILE = os.path.join(PROJECT_ROOT, "data", "top.json")
 
 
 class Parser:
