@@ -2,46 +2,43 @@ import sys
 import os
 import ctypes
 import html
-from PyQt5.QtWidgets import (QApplication,  # Главный класс приложения
-                             QMainWindow,  # Класс главного окна
-                             QWidget,  # Базовый виджет для контейнера
-                             QVBoxLayout,  # Вертикальный менеджер компоновки
-                             QHBoxLayout,  # Горизонтальный менеджер компоновки
-                             QLabel,  # Текстовая метка
-                             QPushButton,  # Кнопка
-                             QTextEdit,  # Текстовое поле для консоли
-                             QTableWidget,  # Редактор таблиц
-                             QTableWidgetItem,  # Редактор ячейки таблицы
-                             QHeaderView,  # Редактор заголовка таблицы
-                             QSpinBox,  # Окно ввода чисел
-                             QLineEdit,  # Окно ввода текста
-                             QMenu,  # Всплывающее окно
-                             QAction,  # Действие для всплывающего окна
-                             QAbstractButton,
-                             QMessageBox)
-from PyQt5.QtCore import (Qt,  # Константы
-                          QProcess,  # Для запуска внешних программ
-                          QObject,  # Для сигналов
-                          pyqtSignal,  # Для создания сигналов
-                          QTimer,  # Таймер
-                          QPropertyAnimation,  # Анимация свойств виджета (плавное изменение)
-                          QEasingCurve,  # Кривые ускорения/замедления анимации
-                          pyqtProperty,  # Декоратор для создания Qt-свойств (переводчик для с++)
-                          QRect,
-                          QProcessEnvironment)
-from PyQt5.QtGui import (QFont,  # Шрифты
-                         QPainter,  # Рисование
-                         QColor,  # Цвета
-                         QBrush,  # Заливка
-                         QPen)  # Стиль линий
-import keyboard  # Для глобальных горячих клавиш (работает даже когда окно неактивно)
+from PyQt5.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTextEdit,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QSpinBox,
+    QLineEdit,
+    QMenu,
+    QAction,
+    QMessageBox
+)
+from PyQt5.QtCore import (
+    Qt,
+    QProcess,
+    QObject,
+    pyqtSignal,
+    QTimer,
+    QProcessEnvironment
+)
+from PyQt5.QtGui import QFont
+import keyboard
 import json
 import traceback
 from functools import partial
+from Switch import Switch
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
-sys.stdout.reconfigure(encoding='utf-8')
+sys.stdout.reconfigure(encoding='utf-8')  # type:ignore
+
 
 # Создаем класс-посредник для обработки горячих клавиш в отдельном потоке
 class HotkeyHandler(QObject):
@@ -98,96 +95,6 @@ class HotkeyHandler(QObject):
             return ctypes.windll.shell32.IsUserAnAdmin()
         except:
             return False
-
-
-class Switch(QAbstractButton):
-    # Сигнал должен быть определен как атрибут класса ДО __init__
-    switchToggled = pyqtSignal(bool)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setFixedSize(90, 45)
-        self.setCursor(Qt.PointingHandCursor)  # Замена курсора на палец
-        self._checked = False  # Выкл
-        self._offset = 3  # Смещение ползунка от левого края
-
-        # Анимация
-        self.animation = QPropertyAnimation(self, b"offset")  # Плавное изменение состояния offset
-        self.animation.setDuration(200)
-        self.animation.setEasingCurve(QEasingCurve.InOutQuad)  # Смягчение анимации
-
-    def isChecked(self):
-        return self._checked
-
-    def setChecked(self, checked):
-        if self._checked != checked:
-            self._checked = checked
-            self.start_animation()
-            self.switchToggled.emit(checked)  # Теперь сигнал существует
-
-    def nextCheckState(self):
-        self.setChecked(not self._checked)
-
-    @pyqtProperty(float)  # Переводчик для с++
-    def offset(self):
-        return self._offset
-
-    @offset.setter
-    def offset(self, value):
-        self._offset = value
-        self.update()
-
-    def start_animation(self):
-        self.animation.stop()  # Если есть прошлая анимация, она останавливается во избежание конфликтов
-        if self._checked:
-            target_offset = self.width() - self.height() + 3  # Отступ для вкл
-        else:
-            target_offset = 3  # Отступ для выкл
-
-        self.animation.setStartValue(self._offset)
-        self.animation.setEndValue(target_offset)
-        self.animation.start()
-
-    def paintEvent(self, event):
-        painter = QPainter(self)  # Объект рисования
-        painter.setRenderHint(QPainter.Antialiasing)  # Сглаживание для окружностей
-        radius = self.height() // 2  # Радиус сглаживания
-
-        # Фон
-        if self._checked:
-            bg_color = QColor(0, 150, 136)  # Бирюзовый
-            text = "10"
-        else:
-            bg_color = QColor(150, 150, 150)  # Серый
-            text = "5"
-
-        painter.setBrush(QBrush(bg_color))  # Кисть для заливки
-        painter.setPen(Qt.NoPen)  # Отключение обводки при рисовании
-        painter.drawRoundedRect(0, 0, self.width(), self.height(), radius, radius)
-
-        # Вычисляем параметры круга
-        circle_size = self.height() - 6  # Диаметр круга
-        circle_x = int(self._offset)  # X координата
-        circle_y = 3  # Y координата
-
-        # Ручка - используем текущий offset
-        painter.setBrush(QBrush(QColor(255, 255, 255)))
-        painter.drawEllipse(circle_x, circle_y, circle_size, circle_size)
-
-        # Создаём прямоугольник точно по размеру круга
-        circle_rect = QRect(circle_x, circle_y, circle_size, circle_size)
-
-        # Настраиваем шрифт
-        font = painter.font()
-        font.setPointSize(circle_size // 3)  # Размер шрифта = 1/3 диаметра
-        painter.setFont(font)
-
-        # Рисуем текст внутри круга
-        painter.setPen(QPen(QColor(0, 0, 0)))
-        painter.drawText(circle_rect, Qt.AlignCenter, text)
-
-    def mousePressEvent(self, event):
-        self.nextCheckState()
 
 
 class MainWindow(QMainWindow):
@@ -610,8 +517,9 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             print(f"Ошибка при обновлении таблицы: {e}")
+        finally:
             try:
-                self.favorite_table.blockSignals(False)
+                self.search_table.blockSignals(False)
             except Exception:
                 pass
 
@@ -943,6 +851,7 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             print(f"Ошибка при обновлении таблицы: {e}")
+        finally:
             try:
                 self.search_table.blockSignals(False)
             except Exception:
@@ -1002,6 +911,8 @@ class MainWindow(QMainWindow):
         def on_finished(exit_code, exit_status):
             if exit_status == QProcess.NormalExit and exit_code == 0:
                 self.top_table_update()
+                items_file = os.path.join(PROJECT_ROOT, "data", "tarkov_items.json")
+                self.load_items_data(items_file, self.all_items_data)
 
         self._start_script(
             script_name="parser.py",
