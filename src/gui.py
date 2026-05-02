@@ -28,7 +28,7 @@ from mixins.file_manager_mixin import FileManagerMixin
 from mixins.hotkey_manager_mixin import HotkeyManagerMixin
 from mixins.process_mixin import ProcessMixin
 from mixins.table_mixin import TableMixin
-
+from logger import log_to_file
 
 sys.stdout.reconfigure(encoding='utf-8')  # type:ignore
 

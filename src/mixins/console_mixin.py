@@ -1,16 +1,18 @@
 import html
+# noinspection PyUnresolvedReferences
 
 
 class ConsoleMixin:
+    """Миксин для работы с консолью"""
     def __init__(self):
         super().__init__()
 
-    """Миксин для работы с консолью (поиск, избранное, топ)"""
-    def clear_console(self):
+    def clear_console(self) -> None:
         """Очищает консоль"""
         self.console.clear()
 
-    def append_to_console(self, text, color=None):
+    def append_to_console(self, text: str, color: str = None) -> None:
+        """Вывод в консоль"""
         if color:
             safe_text = html.escape(text)
             colored_html = f'<font color="{color}">{safe_text}</font>'

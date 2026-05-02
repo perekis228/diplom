@@ -98,7 +98,6 @@ def detect_items(
         log_to_console(f"Ошибка загрузки модели")
         return []
 
-    print(f"Анализ изображения: {image_path}", file=sys.stderr)
     log_to_file(f"Анализ изображения {image_path} с уровнем уверенности {conf_threshold}", "INFO")
     log_to_console("Анализ изображения...")
     results = model(image_path, conf=conf_threshold, verbose=False)

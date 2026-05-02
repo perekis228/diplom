@@ -1,6 +1,14 @@
 import os
+import sys
 import json
-import traceback
+from typing import Dict, Any
+
+mixins_dir = os.path.dirname(os.path.abspath(__file__))
+src_dir = os.path.dirname(mixins_dir)
+sys.path.append(src_dir)
+
+from src.logger import log_to_file
+# noinspection PyUnresolvedReferences
 
 
 class FileManagerMixin:
@@ -9,11 +17,12 @@ class FileManagerMixin:
     def __init__(self):
         super().__init__()
 
-    def load_items_data(self, items_file, items_data):
+    def load_items_data(self, items_file: str, items_data: Dict[str, Dict[str, Any]]) -> None:
         """Загружает данные из json"""
         try:
             if not os.path.exists(items_file):
                 self.append_to_console(f"Файл {items_file} не найден", "red")
+                log_to_file(f"Файл {items_file} не найден", "WARNING")
                 items_data.clear()
                 return
 
@@ -25,19 +34,23 @@ class FileManagerMixin:
                 items_data.update(loaded_data)
             else:
                 self.append_to_console(f"Ошибка: ожидался словарь, получен {type(loaded_data)}", "red")
+                log_to_file(f"Ошибка: ожидался словарь, получен {type(loaded_data)}", "ERROR")
                 items_data.clear()
                 return
 
             self.append_to_console(f"Загружено {len(items_data)} предметов из {items_file}", "green")
+            log_to_file(f"Загружено {len(items_data)} предметов из {items_file}")
 
         except Exception as e:
-            print(f"Ошибка при загрузке данных: {e}")
-            traceback.print_exc()
+            self.append_to_console(f"Ошибка при загрузке данных: {e}")
+            log_to_file(f"Ошибка при загрузке данных: {e}", "ERROR")
 
-    def _del_log(self):
+    def _del_log(self) -> None:
+        """Удаляет лог"""
         log_path = os.path.join(self.project_root, "logs", "tarkov_detector.log")
         if os.path.exists(log_path):
             try:
                 os.remove(log_path)
             except Exception as e:
-                self.append_to_console(f"Ошибка удаления лога: {e}", "orange")
+                self.append_to_console(f"Ошибка удаления лога", "orange")
+                log_to_file(f"Ошибка удаления лога: {e}", "ERROR")
