@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import QAbstractButton
 
 DEFAULT_WIDTH = 90
 DEFAULT_HEIGHT = 45
-DEFAULT_OFFSET = 3
+DEFAULT_MARGIN = 3
 
 
 class Switch(QAbstractButton):
@@ -28,7 +28,7 @@ class Switch(QAbstractButton):
             parent=None,
             width: int = DEFAULT_WIDTH,
             height: int = DEFAULT_HEIGHT,
-            offset: float = DEFAULT_OFFSET,
+            margin: float = DEFAULT_MARGIN,
             text_off: str = "5",
             text_on: str = "10"
     ) -> None:
@@ -39,11 +39,13 @@ class Switch(QAbstractButton):
         self.setCheckable(True)
         self.toggled.connect(self._on_toggled)  # type:ignore
         self.setChecked(False)
-        self._offset = offset
+        self._margin = margin
+        self._knob_x = margin
+
         self._text_off = text_off
         self._text_on = text_on
 
-        self.animation = QPropertyAnimation(self, b"offset")
+        self.animation = QPropertyAnimation(self, b"knob_x")
         self.animation.setDuration(200)
         self.animation.setEasingCurve(QEasingCurve.InOutQuad)
 
@@ -57,30 +59,30 @@ class Switch(QAbstractButton):
         self.setChecked(not self.isChecked())
 
     @pyqtProperty(float)
-    def offset(self) -> float:
-        """Геттер отступа ползунка от границ."""
-        return self._offset
+    def knob_x(self) -> float:
+        """Геттер отступа для анимации."""
+        return self._knob_x
 
-    @offset.setter
-    def offset(self, value: float) -> None:
-        """Сеттер отступа ползунка от границ."""
-        self._offset = value
+    @knob_x.setter
+    def knob_x(self, value: float) -> None:
+        """Сеттер отступа для анимации."""
+        self._knob_x = value
         self.update()
 
     def start_animation(self) -> None:
-        """Функция анимирования переключения ползунка."""
+        """Запуск анимации переключения ползунка."""
         self.animation.stop()
         if self.isChecked():
-            target_offset = self.width() - self.height() + self._offset
+            target = self.width() - self.height() + self._margin
         else:
-            target_offset = self._offset
+            target = self._margin
 
-        self.animation.setStartValue(self._offset)
-        self.animation.setEndValue(target_offset)
+        self.animation.setStartValue(self._knob_x)
+        self.animation.setEndValue(target)
         self.animation.start()
 
     def paintEvent(self, event) -> None:
-        """Перерисовка свитча."""
+        """Отрисовка свитча."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         radius = self.height() // 2
@@ -97,9 +99,9 @@ class Switch(QAbstractButton):
         painter.setPen(Qt.NoPen)
         painter.drawRoundedRect(0, 0, self.width(), self.height(), radius, radius)
 
-        circle_size = self.height() - 2 * self._offset
-        circle_x = self._offset
-        circle_y = self._offset
+        circle_size = int(self.height() - 2 * self._margin)
+        circle_x = int(self._knob_x)
+        circle_y = int(self._margin)
 
         painter.setBrush(QBrush(QColor(255, 255, 255)))
         painter.drawEllipse(circle_x, circle_y, circle_size, circle_size)
