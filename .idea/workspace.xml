@@ -4,8 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Унификация процессов в gui.py">
-      <change afterPath="$PROJECT_DIR$/src/Switch.py" afterDir="false" />
+    <list default="true" id="fddbfa1d-658d-4ce0-9e00-83ae9debab25" name="Changes" comment="Исправление свитча">
+      <change afterPath="$PROJECT_DIR$/src/hotkey.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/mixins/console_mixin.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/mixins/detect_overlay_mixin.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/mixins/file_manager_mixin.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/mixins/hotkey_manager_mixin.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/mixins/process_mixin.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/mixins/table_mixin.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui.py" afterDir="false" />
     </list>
@@ -36,37 +42,38 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python.check.executor&quot;: &quot;Run&quot;,
-    &quot;Python.cv_reader.executor&quot;: &quot;Run&quot;,
-    &quot;Python.detection.executor&quot;: &quot;Run&quot;,
-    &quot;Python.detection_pyqt.executor&quot;: &quot;Run&quot;,
-    &quot;Python.gui.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;Python.overlay.executor&quot;: &quot;Run&quot;,
-    &quot;Python.parser (1).executor&quot;: &quot;Run&quot;,
-    &quot;Python.parser.executor&quot;: &quot;Run&quot;,
-    &quot;Python.run.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_dll.executor&quot;: &quot;Run&quot;,
-    &quot;Python.train.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/PythonUniversity/diplom&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;configurable.group.language&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python.check.executor": "Run",
+    "Python.cv_reader.executor": "Run",
+    "Python.detection.executor": "Run",
+    "Python.detection_pyqt.executor": "Run",
+    "Python.gui.executor": "Run",
+    "Python.hotkey_manager_mixin.executor": "Run",
+    "Python.main.executor": "Run",
+    "Python.overlay.executor": "Run",
+    "Python.parser (1).executor": "Run",
+    "Python.parser.executor": "Run",
+    "Python.run.executor": "Run",
+    "Python.test.executor": "Run",
+    "Python.test_dll.executor": "Run",
+    "Python.train.executor": "Run",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "C:/PythonUniversity/diplom",
+    "settings.editor.selected.configurable": "configurable.group.language"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\PythonUniversity\diplom" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\PythonUniversity\diplom\src" />
       <recent name="C:\PythonUniversity\diplom\logs" />
       <recent name="C:\PythonUniversity\diplom\model" />
       <recent name="C:\PythonUniversity\diplom\data" />
-      <recent name="C:\PythonUniversity\diplom\src" />
       <recent name="C:\PythonUniversity\diplom" />
     </key>
   </component>
@@ -533,7 +540,23 @@
       <option name="project" value="LOCAL" />
       <updated>1777558115602</updated>
     </task>
-    <option name="localTasksCounter" value="42" />
+    <task id="LOCAL-00042" summary="Разблокировки сигналов пересены в finally, Switch вынесен в отдельный класс и очищен">
+      <option name="closed" value="true" />
+      <created>1777638966184</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1777638966184</updated>
+    </task>
+    <task id="LOCAL-00043" summary="Исправление свитча">
+      <option name="closed" value="true" />
+      <created>1777722446348</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1777722446348</updated>
+    </task>
+    <option name="localTasksCounter" value="44" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -548,8 +571,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Смещение таблицы вправо" />
-    <MESSAGE value="Добавлены поиск предметов и их вывод в таблицу" />
     <MESSAGE value="Добавлена возможность через поиск добавлять предметы в избранное" />
     <MESSAGE value="Добавлена таблица избранного, её обновление; функции загрузки данных и добавления в избранное теперь работают для 2 таблиц" />
     <MESSAGE value="Добавлена возможность удаления из избранного; убрана возможность добавления в избранное через таблицу избранного" />
@@ -573,7 +594,9 @@
     <MESSAGE value="Переорганизация" />
     <MESSAGE value="Изменение путей" />
     <MESSAGE value="Унификация процессов в gui.py" />
-    <option name="LAST_COMMIT_MESSAGE" value="Унификация процессов в gui.py" />
+    <MESSAGE value="Разблокировки сигналов пересены в finally, Switch вынесен в отдельный класс и очищен" />
+    <MESSAGE value="Исправление свитча" />
+    <option name="LAST_COMMIT_MESSAGE" value="Исправление свитча" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
